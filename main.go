@@ -36,6 +36,7 @@ func main() {
 	}
 
 	ch := make(chan struct{})
+	// factory
 	factory := informers.NewSharedInformerFactory(clientset, 10*time.Minute)
 	c := controller.NewController(clientset, factory.Apps().V1().Deployments())
 	factory.Start(ch)
