@@ -6,28 +6,23 @@ if client want then it need private key and client certificate
 
 ## How to access the kubeconfig file on our machine 
 
-```bash
-rahulxf@Rahuls-MacBook-Air-3 ~ % cd $HOME/.kube/  
+```go
+rahulxf@Rahuls-MacBook-Air-3 ~ % cd $HOME/.kube/  <---
 
 rahulxf@Rahuls-MacBook-Air-3 .kube % ls -l
 total 160
 drwxr-x---@ 4 rahulxf  staff    128 Jan 17 22:46 cache
--rw-------@ 1 rahulxf  staff  31948 Feb 17 10:48 config
+-rw-------@ 1 rahulxf  staff  31948 Feb 17 10:48 config <--- kubeconfig file 
 -rw-r--r--  1 rahulxf  staff   7973 Feb  4 16:01 karmada-apiserver.config
 -rw-------  1 rahulxf  staff  13415 Feb 11 19:28 karmada.config
 -rw-r--r--  1 rahulxf  staff      4 Feb 17 10:43 kubectx
 drwxr-xr-x  4 rahulxf  staff    128 Feb 17 10:48 kubens
 -rw-r--r--  1 rahulxf  staff  16652 Feb  2 22:01 members.config
-
-rahulxf@Rahuls-MacBook-Air-3 .kube %
-
-rahulxf@Rahuls-MacBook-Air-3 .kube % vim config
-rahulxf@Rahuls-MacBook-Air-3 .kube % vim config
 ```
 
 * config is the kubeconfig file 
 
-```
+```rs
 apiVersion: v1
 clusters:
 - cluster:
@@ -78,7 +73,14 @@ client-certificate-data: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURLVENDQWhHZ0F
 client-key-data: LS0tLS
 ```
 
+Flow diagram 
+----
+
+<img width="929" alt="shapes at 25-02-20 12 40 47" src="https://github.com/user-attachments/assets/fee09087-1fce-4324-bf42-44f01e0464ad" />
+
+
 How to add users 
+----
 
 ```
 $ kubectl config set-credentials devuser --client-certificate du.crt --client-key du.key
@@ -87,6 +89,7 @@ User "devuser" set.
 ```
 
 You also need to map it , i mean you need to add context for this user for the cluster 
+---
 
 ```
 $ kubectl config set-context --cluster kind-kind --user devuser
@@ -102,6 +105,7 @@ Context "devuser-kind" created
 ```
 
 If you want to check which context we are using 
+---
 
 `$ kubectl config current-context`
 
@@ -121,7 +125,8 @@ $ export KUBECONFIG=~/.kube/config:~/.kube/karmada.config:~/.kube/karmada-apiser
 
 <img width="1120" alt="Screenshot 2025-02-18 at 11 21 48 PM" src="https://github.com/user-attachments/assets/d1d742bf-d308-42a8-bcf6-41b4d5c881da" />
 
-To authenticate the user to kubernetes cluster we will do client certificate management 
+To authenticate the user to Kubernetes cluster we will do client certificate management 
+---
 
 docker ps  (get the id )
 docker exec -it <id> bash
@@ -131,7 +136,7 @@ ls -l (you will see the key, csr and other files )
 
 * So for creating private key and csr key you can run this command to generate
 
-<img width="1179" alt="shapes at 25-02-20 00 13 41" src="https://github.com/user-attachments/assets/2aedf2d0-8b1b-4a23-9ce0-c815020ec5fa" />
+<img width="1199" alt="shapes at 25-02-20 12 39 00" src="https://github.com/user-attachments/assets/99159373-2e30-4568-85a3-d36f1536d9a9" />
 
 Generate new ssl key:
 -----
@@ -182,9 +187,57 @@ $ kubectx
 ```
 <img width="1094" alt="Screenshot 2025-02-19 at 1 10 23 AM" src="https://github.com/user-attachments/assets/093537f4-76b7-4f11-890e-77781eefa5cd" />
 
+
 * allow namespaces 
 <img width="1310" alt="Screenshot 2025-02-19 at 1 17 41 AM" src="https://github.com/user-attachments/assets/b9e2ca7c-ac1c-4b7c-9384-4ec96a951f15" />
 
 
 * allow pods 
 <img width="1310" alt="Screenshot 2025-02-19 at 1 23 04 AM" src="https://github.com/user-attachments/assets/9967a9df-bac0-42d9-9b3a-d177e764b2b5" />
+
+Certificate Singning Request 
+----
+* Creating the certificate singning request with the k8s ca.crt key 
+<img width="1337" alt="Screenshot 2025-02-19 at 1 31 19 AM" src="https://github.com/user-attachments/assets/2b8a8983-e7b8-4731-861c-4664d129f649" />
+
+* To put into our csr yaml file we need to encode the key 
+<img width="1337" alt="Screenshot 2025-02-19 at 1 34 14 AM" src="https://github.com/user-attachments/assets/d602c7c0-b2d1-421e-b8ee-962f2742e046" />
+
+```yaml
+// csr.yaml
+apiVersion: certificates.k8s.io/v1
+kind: CertificateSigningRequest
+metadata:
+  name: rahulxf
+spec:
+  groups:
+    - developers
+  request: |
+    LS0tLS1CRUdJTiBDRVJUSUZJQ0FURSBSRVFVRVNULS....
+  signerName: kubernetes.io/kube-apiserver-client
+  usages:
+    - client auth
+```
+
+And then create it using kubectl command
+
+```bash
+$ kubectl create -f csr. yaml
+certificatesigningrequest.certificates.k8s.io/rahulxf_created
+
+# Get your certificate 
+$ kubectl get csr
+
+# Approve your certificate
+# rahulxf == name
+$ kubectl certificate approve rahulxf
+
+# Look for the certificate details
+$ kubectl describe csr rahulxf
+```
+
+<img width="1337" alt="Screenshot 2025-02-19 at 1 44 04 AM" src="https://github.com/user-attachments/assets/477297d6-ac7a-4db7-8b0e-f26b586b9620" />
+
+<img width="1231" alt="Screenshot 2025-02-20 at 12 35 04 PM" src="https://github.com/user-attachments/assets/87e933b6-de22-44ef-9d32-3b1ad54b9f7b" />
+
+
