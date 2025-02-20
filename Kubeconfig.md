@@ -20,6 +20,11 @@ drwxr-xr-x  4 rahulxf  staff    128 Feb 17 10:48 kubens
 -rw-r--r--  1 rahulxf  staff  16652 Feb  2 22:01 members.config
 ```
 
+Create kind cluster 
+----
+```rs
+$ kind create cluster
+```
 * config is the kubeconfig file 
 
 ```rs
