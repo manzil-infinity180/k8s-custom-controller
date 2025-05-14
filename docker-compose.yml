@@ -4,6 +4,6 @@ services:
       context: .
       dockerfile: Dockerfile
     volumes:
-      - ~/.kube:/root/.kube
+      - ${HOME}/.kube:/root/.kube
     ports:
       - "8000:8000"
