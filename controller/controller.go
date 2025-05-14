@@ -1,10 +1,12 @@
 package controller
 
+// https://danielms.site/zet/2024/client-go-kubernetes-deploymentservice-and-ingress/
 import (
 	"context"
 	"fmt"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	appsInformer "k8s.io/client-go/informers/apps/v1"
@@ -106,18 +108,93 @@ func (c *controller) syncDeployment(ns, name string) error {
 		fmt.Printf("sync deployment, %s\n", err.Error())
 	}
 
+	err = c.createIngress(ns, name)
+	if err != nil {
+		fmt.Printf("sync deployment, %s\n", err.Error())
+	}
 	return nil
+}
+
+func (c *controller) createIngress(ns, name string) error {
+	ctx := context.Background()
+	pathType := "Prefix"
+	ingress := networkingv1.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: ns,
+			Annotations: map[string]string{
+				"nginx.ingress.kubernetes.io/rewrite-target": "/",
+			},
+		},
+		Spec: networkingv1.IngressSpec{
+			Rules: []networkingv1.IngressRule{
+				networkingv1.IngressRule{
+					Host: "demo.local",
+					IngressRuleValue: networkingv1.IngressRuleValue{
+						HTTP: &networkingv1.HTTPIngressRuleValue{
+							Paths: []networkingv1.HTTPIngressPath{
+								networkingv1.HTTPIngressPath{
+									Path:     fmt.Sprintf("/%s", name),
+									PathType: (*networkingv1.PathType)(&pathType),
+									Backend: networkingv1.IngressBackend{
+										Service: &networkingv1.IngressServiceBackend{
+											Name: name,
+											Port: networkingv1.ServiceBackendPort{
+												Number: 80,
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	_, err := c.clientset.NetworkingV1().Ingresses(ns).Create(ctx, &ingress, metav1.CreateOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
+
 }
 
 func depLabels(dep appsv1.Deployment) map[string]string {
 	return dep.Spec.Template.Labels
 }
+
+// Almost working
 func (c *controller) handleAdd(obj interface{}) {
-	fmt.Println("hello add is called")
+	//fmt.Println("hello add is called")
+	item, ok := obj.(*appsv1.Deployment)
+	if !ok {
+		fmt.Println("\n Not a Deployemt")
+		return
+	}
+	fmt.Printf("Deployment \n")
+	fmt.Printf(item.Name)
+	fmt.Printf(item.Kind)
+
+	fmt.Printf("ADDED: %s", "Kind=%s, Name=%s, Namespace=%s, UID=%s", item.CreationTimestamp,
+		item.Kind, item.Name, item.Namespace, item.UID)
+
 	c.queue.Add(obj)
 }
 
+// Not tested
 func (c *controller) handleDel(obj interface{}) {
-	fmt.Println("hello del is called")
+	item, ok := obj.(*appsv1.Deployment)
+	if !ok {
+		fmt.Println("\n Not a Deployemt")
+		return
+	}
+	fmt.Printf("Deployment \n")
+	fmt.Printf(item.Name)
+	fmt.Printf(item.Kind)
+
+	fmt.Printf("DELETED: %s", "Kind=%s, Name=%s, Namespace=%s, UID=%s", item.CreationTimestamp,
+		item.Kind, item.Name, item.Namespace, item.UID)
+
 	c.queue.Add(obj)
 }
