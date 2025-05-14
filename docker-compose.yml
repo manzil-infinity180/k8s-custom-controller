@@ -1,6 +1,7 @@
 services:
   controller:
     build:
+      context: .
       dockerfile: Dockerfile
     volumes:
       - ~/.kube:/root/.kube
