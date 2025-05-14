@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: k8s-custom-controller
+  labels:
+    k8s.custom.controller: workload
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      k8s.custom.controller: workload
+  template:
+    metadata:
+      labels:
+        k8s.custom.controller: workload
+    spec:
+      containers:
+        - name: k8s-controller
+          image: manzilrahul/k8s-custom-controller:1.0.0
