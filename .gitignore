@@ -3,3 +3,4 @@ k8s-custom-controller
 vendor\
 .idea
 .DS_Store
+vendor
