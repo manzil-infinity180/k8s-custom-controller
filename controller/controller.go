@@ -91,6 +91,9 @@ func (c *controller) syncDeployment(ns, name string) error {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      dep.Name,
 			Namespace: ns,
+			//Labels: map[string]string{
+			//
+			//},
 		},
 		Spec: corev1.ServiceSpec{
 			Selector: depLabels(*dep),
@@ -101,6 +104,15 @@ func (c *controller) syncDeployment(ns, name string) error {
 				},
 			},
 		},
+	}
+	labels := service.Labels
+	if labels == nil {
+		labels = make(map[string]string)
+	}
+	labelKey := "rahulxf.io/workload"
+	if _, exist := labels[labelKey]; !exist {
+		labels[labelKey] = name
+		service.SetLabels(labels)
 	}
 
 	_, err = c.clientset.CoreV1().Services(ns).Create(ctx, &service, metav1.CreateOptions{})
@@ -125,6 +137,9 @@ func (c *controller) createIngress(ns, name string) error {
 			Annotations: map[string]string{
 				"nginx.ingress.kubernetes.io/rewrite-target": "/",
 			},
+			//Labels: map[string]string{
+			//
+			//},
 		},
 		Spec: networkingv1.IngressSpec{
 			Rules: []networkingv1.IngressRule{
@@ -152,6 +167,16 @@ func (c *controller) createIngress(ns, name string) error {
 			},
 		},
 	}
+
+	labels := ingress.Labels
+	if labels == nil {
+		labels = make(map[string]string)
+	}
+	labelKey := "rahulxf.io/workload"
+	if _, exist := labels[labelKey]; !exist {
+		labels[labelKey] = name
+		ingress.SetLabels(labels)
+	}
 	_, err := c.clientset.NetworkingV1().Ingresses(ns).Create(ctx, &ingress, metav1.CreateOptions{})
 	if err != nil {
 		return err
@@ -166,35 +191,39 @@ func depLabels(dep appsv1.Deployment) map[string]string {
 
 // Almost working
 func (c *controller) handleAdd(obj interface{}) {
-	//fmt.Println("hello add is called")
-	item, ok := obj.(*appsv1.Deployment)
+	deployment, ok := obj.(*appsv1.Deployment)
 	if !ok {
-		fmt.Println("\n Not a Deployemt")
+		fmt.Println("\n Not a Deployment")
 		return
 	}
-	fmt.Printf("Deployment \n")
-	fmt.Printf(item.Name)
-	fmt.Printf(item.Kind)
 
-	fmt.Printf("ADDED: %s", "Kind=%s, Name=%s, Namespace=%s, UID=%s", item.CreationTimestamp,
-		item.Kind, item.Name, item.Namespace, item.UID)
+	fmt.Printf("Deployment Added:\n")
+	fmt.Printf("Name: %s\n", deployment.Name)
+
+	fmt.Printf("ADDED: Name=%s, Namespace=%s, UID=%s, Created=%s\n",
+		deployment.Name,
+		deployment.Namespace,
+		string(deployment.UID),
+		deployment.CreationTimestamp)
 
 	c.queue.Add(obj)
 }
 
 // Not tested
 func (c *controller) handleDel(obj interface{}) {
-	item, ok := obj.(*appsv1.Deployment)
+	deployment, ok := obj.(*appsv1.Deployment)
 	if !ok {
-		fmt.Println("\n Not a Deployemt")
+		fmt.Println("\n Not a Deployment")
 		return
 	}
-	fmt.Printf("Deployment \n")
-	fmt.Printf(item.Name)
-	fmt.Printf(item.Kind)
+	fmt.Printf("Deployment Deleted:\n")
+	fmt.Printf("Name: %s\n", deployment.Name)
 
-	fmt.Printf("DELETED: %s", "Kind=%s, Name=%s, Namespace=%s, UID=%s", item.CreationTimestamp,
-		item.Kind, item.Name, item.Namespace, item.UID)
+	fmt.Printf("DELETED: Name=%s, Namespace=%s, UID=%s, Created=%s\n",
+		deployment.Name,
+		deployment.Namespace,
+		string(deployment.UID),
+		deployment.CreationTimestamp)
 
-	c.queue.Add(obj)
+	//c.queue.Add(obj)
 }

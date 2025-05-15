@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-deployment2
+  labels:
+    app: nginx
+    env: prod
+    "rahulxf.io/workload": my-deployment2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx
+      "rahulxf.io/workload": my-deployment2
+  template:
+    metadata:
+      labels:
+        app: nginx
+        env: prod
+        "rahulxf.io/workload": my-deployment2
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:latest
+
