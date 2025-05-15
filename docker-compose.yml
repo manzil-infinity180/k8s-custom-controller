@@ -1,0 +1,9 @@
+services:
+  controller:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ${HOME}/.kube:/root/.kube
+    ports:
+      - "8000:8000"
