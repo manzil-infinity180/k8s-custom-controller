@@ -2,12 +2,16 @@ package main
 
 import (
 	"fmt"
+	"github.com/joho/godotenv"
 	"github.com/manzil-infinity180/k8s-custom-controller/controller"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/tools/clientcmd/api"
+	"log"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -17,6 +21,35 @@ func homeDir() string {
 		return h
 	}
 	return os.Getenv("USERPROFILE") // Windows
+}
+
+func ListContexts() (string, []string, error) {
+	config, err := getKubeConfig()
+	if err != nil {
+		return "", nil, err
+	}
+	currentContext := config.CurrentContext
+	var contexts []string
+	for name := range config.Contexts {
+		if strings.Contains(name, "wds") {
+			contexts = append(contexts, name)
+		}
+	}
+	return currentContext, contexts, nil
+}
+func getKubeConfig() (*api.Config, error) {
+	kubeconfig := os.Getenv("KUBECONFIG")
+	if kubeconfig == "" {
+		if home := homeDir(); home != "" {
+			kubeconfig = fmt.Sprintf("%s/.kube/config", home)
+		}
+	}
+
+	config, err := clientcmd.LoadFromFile(kubeconfig)
+	if err != nil {
+		return nil, err
+	}
+	return config, nil
 }
 
 // GetClientSetWithContext retrieves a Kubernetes clientset and dynamic client for a specified context
@@ -33,7 +66,10 @@ func GetClientSetWithContext(contextName string) (*kubernetes.Clientset, dynamic
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to load kubeconfig: %v", err)
 	}
-
+	// if user does not mention any context then we will be using the current-system-context
+	if contextName == "" {
+		contextName = config.CurrentContext
+	}
 	// Check if the specified context exists
 	ctxContext := config.Contexts[contextName]
 	if ctxContext == nil {
@@ -65,8 +101,13 @@ func GetClientSetWithContext(contextName string) (*kubernetes.Clientset, dynamic
 	return clientset, dynamicClient, nil
 }
 func main() {
-	// add your context here
-	clientset, _, err := GetClientSetWithContext("cluster1")
+	// add your context in the docker-compose.yml
+	if err := godotenv.Load(); err != nil {
+		log.Println(".env file not found, assuming environment variables are set")
+	}
+	context := os.Getenv("CONTEXT")
+	fmt.Println(context)
+	clientset, _, err := GetClientSetWithContext(context)
 	if err != nil {
 		fmt.Println()
 		fmt.Errorf("%s", err.Error())
