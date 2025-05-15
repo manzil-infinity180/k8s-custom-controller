@@ -9,6 +9,8 @@ docker run --rm --name k8s-custom-controller \
 kubectl create deployment my-deployment --image=nginx:latest --labels=app=nginx,env=prod
 ```
 ```go
+// https://patorjk.com/software/taag/#p=display&h=1&v=0&f=Slant&t=k8s%20Controller%0A 
+// for creating the ASCII Banner
 make build-image         # builds 1.0.1 and latest
 make push-image          # pushes 1.0.1 and latest
 
