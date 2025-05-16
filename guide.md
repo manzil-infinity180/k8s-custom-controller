@@ -1,3 +1,4 @@
+Author: Rahul Vishwakarma <rahulvs2809@gmail.com>
 ```go
 docker run --rm --name k8s-custom-controller \
   --network host \
@@ -20,3 +21,4 @@ make push-image VERSION=1.0.2
 
 make build-image APP_NAME=custom-controller DOCKER_USER=yourusername VERSION=2.0.0
 ```
+
