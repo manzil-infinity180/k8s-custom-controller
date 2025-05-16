@@ -7,7 +7,6 @@ on:
 permissions:
   contents: read
   issues: write
-  pull-requests: write
   repository_dispatch: write
 
 jobs:
@@ -17,7 +16,10 @@ jobs:
       - uses: peter-evans/slash-command-dispatch@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          reaction-token: ${{ secrets.GITHUB_TOKEN }}
           commands: |
             lgtm
             close
-#            assign
+          issue-type: both
+          permission: write
+          dispatch-type: repository
