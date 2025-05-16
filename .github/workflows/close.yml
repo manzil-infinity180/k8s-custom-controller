@@ -1,27 +1,29 @@
 name: Handle /close
+
 on:
   repository_dispatch:
     types: [close]
 
 permissions:
-    contents: read
-    pull-requests: write
-    issues: write
-    repository_dispatch: read
+  contents: read
+  pull-requests: write
+  issues: write
+  repository_dispatch: read
 
 jobs:
   acknowledge-close:
     runs-on: ubuntu-latest
     steps:
-      uses: actions-ecosystem/action-create-comment@v1
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        issue_number: ${{ github.event.client_payload.issue.number }}
-        body: |
-          Closing as requested via `/close` command.
+      - name: Comment on issue/PR
+        uses: actions-ecosystem/action-create-comment@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          issue_number: ${{ github.event.client_payload.issue.number }}
+          body: |
+            Closing as requested via `/close` command.
 
   close-issue-or-pr:
-    needs: acknowledge-close  # ✅ Runs only after previous job completes
+    needs: acknowledge-close
     runs-on: ubuntu-latest
     steps:
       - name: Close PR or Issue
