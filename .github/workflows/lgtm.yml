@@ -1,0 +1,20 @@
+name: Handle /lgtm
+on:
+  repository_dispatch:
+    types: [lgtm]
+
+jobs:
+  approve-and-merge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add 'lgtm' label
+        uses: actions-ecosystem/action-add-labels@v1
+        with:
+          github_token: '${{ secrets.GITHUB_TOKEN }}'
+          labels: lgtm
+
+      - name: Merge the PR
+        uses: actions-ecosystem/action-pull-request-merge@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          merge_method: squash
