@@ -5,8 +5,10 @@ on:
     types: [created]
 
 permissions:
-    contents: read
-    repository_dispatch: write
+  contents: read
+  issues: write
+  pull-requests: write
+  repository_dispatch: write
 
 jobs:
   slash-command:
