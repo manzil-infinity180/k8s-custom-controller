@@ -14,3 +14,4 @@ jobs:
           commands: |
             lgtm
             close
+#            assign
