@@ -10,7 +10,7 @@ jobs:
       - name: Add 'lgtm' label
         uses: actions-ecosystem/action-add-labels@v1
         with:
-          github_token: '${{ github.token }}'
+          github_token: '${{ secrets.GITHUB_TOKEN }}'
           labels: lgtm
 
       - name: Merge the PR
