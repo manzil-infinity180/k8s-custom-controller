@@ -3,6 +3,12 @@ on:
   repository_dispatch:
     types: [close]
 
+permissions:
+    contents: read
+    pull-requests: write
+    issues: write
+    repository_dispatch: read
+
 jobs:
   acknowledge-close:
     runs-on: ubuntu-latest
