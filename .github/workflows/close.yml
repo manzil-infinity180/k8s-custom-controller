@@ -1,0 +1,25 @@
+name: Handle /close
+on:
+  repository_dispatch:
+    types: [close]
+
+jobs:
+  acknowledge-close:
+    runs-on: ubuntu-latest
+    steps:
+      uses: actions-ecosystem/action-create-comment@v1
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        issue_number: ${{ github.event.client_payload.issue.number }}
+        body: |
+          Closing as requested via `/close` command.
+
+  close-issue-or-pr:
+    needs: acknowledge-close  # ✅ Runs only after previous job completes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Close PR or Issue
+        uses: peter-evans/close-issue@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          issue-number: ${{ github.event.client_payload.issue.number }}

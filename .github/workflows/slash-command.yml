@@ -13,4 +13,4 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           commands: |
             lgtm
-#            assign
+            close
