@@ -3,16 +3,16 @@ kind: Deployment
 metadata:
   name: k8s-custom-controller
   labels:
-    k8s.custom.controller: workload
+    k8s.custom.controller: k8s-custom-controller
 spec:
   replicas: 1
   selector:
     matchLabels:
-      k8s.custom.controller: workload
+      k8s.custom.controller: k8s-custom-controller
   template:
     metadata:
       labels:
-        k8s.custom.controller: workload
+        k8s.custom.controller: k8s-custom-controller
     spec:
       containers:
         - name: k8s-controller
