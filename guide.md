@@ -25,3 +25,18 @@ make build-image APP_NAME=custom-controller DOCKER_USER=yourusername VERSION=2.0
 https://jhooq.com/building-first-helm-chart-with-spring-boot/
 https://jhooq.com/convert-kubernetes-yaml-into-helm/
 ```
+
+```md
+# how we will port forward svc
+> kubectl port-forward svc/k8s-custom-controller-service 8080:80
+```
+
+```md
+# this is another way to build depend on platform
+
+docker buildx build --platform linux/amd64 -t manzilrahul/k8s-custom-controller:1.0.3 .
+```
+
+```md
+kubectl get nodes -o wide
+```
