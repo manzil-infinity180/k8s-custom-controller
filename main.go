@@ -1,9 +1,14 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"github.com/joho/godotenv"
 	"github.com/manzil-infinity180/k8s-custom-controller/controller"
+	admissionv1 "k8s.io/api/admission/v1"
+	appsv1 "k8s.io/api/apps/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -11,6 +16,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
 	"log"
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -126,6 +132,8 @@ func main() {
 		fmt.Errorf("%s", err.Error())
 	}
 
+	http.HandleFunc("/validate", ValidateDeployment)
+
 	ch := make(chan struct{})
 	// factory
 	factory := informers.NewSharedInformerFactory(clientset, 10*time.Minute)
@@ -134,4 +142,69 @@ func main() {
 	c.Run(ch)
 	fmt.Println(factory)
 	factory.Apps().V1().Deployments().Informer()
+}
+
+func parseRequest(r *http.Request) (*admissionv1.AdmissionReview, error) {
+	if r.Header.Get("Content-Type") != "application/json" {
+		return nil, fmt.Errorf("Content-Type: %q should be %q",
+			r.Header.Get("Content-Type"), "application/json")
+	}
+	bodybuf := new(bytes.Buffer)
+	bodybuf.ReadFrom(r.Body)
+	body := bodybuf.Bytes()
+	if len(body) == 0 {
+		return nil, fmt.Errorf("admission request body is empty")
+	}
+	var a admissionv1.AdmissionReview
+	if err := json.Unmarshal(body, &a); err != nil {
+		return nil, fmt.Errorf("could not parse admission review request: %v", err)
+	}
+
+	if a.Request == nil {
+		return nil, fmt.Errorf("admission review can't be used: Request field is nil")
+	}
+	return &a, nil
+}
+
+type Admitter struct {
+	Request *admissionv1.AdmissionRequest
+}
+
+func ValidateDeployment(w http.ResponseWriter, r *http.Request) {
+	in, err := parseRequest(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	//adm := Admitter{
+	//	Request: in.Request,
+	//}
+	var dep appsv1.Deployment
+	if err := json.Unmarshal(in.Request.Object.Raw, &dep); err != nil {
+		http.Error(w, fmt.Sprintf("could not unmarshal deployment: %v", err), http.StatusBadRequest)
+		return
+	}
+	images := []string{}
+	for _, c := range dep.Spec.Template.Spec.Containers {
+		images = append(images, c.Image)
+	}
+	response := admissionv1.AdmissionReview{
+		TypeMeta: in.TypeMeta,
+		Response: &admissionv1.AdmissionResponse{
+			UID:     in.Request.UID,
+			Allowed: false,
+			Result: &metav1.Status{
+				Message: fmt.Sprintf("Denied images: %v", images),
+			},
+		},
+	}
+	w.Header().Set("Content-Type", "application/json")
+	jout, err := json.Marshal(response)
+	if err != nil {
+		e := fmt.Sprintf("could not parse admission response: %v", err)
+		http.Error(w, e, http.StatusInternalServerError)
+		return
+	}
+	w.Write(jout)
 }
