@@ -4,13 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"log"
-	"net/http"
-	"os"
-	"os/exec"
-	"strings"
-	"time"
-
 	"github.com/joho/godotenv"
 	"github.com/manzil-infinity180/k8s-custom-controller/controller"
 	admissionv1 "k8s.io/api/admission/v1"
@@ -22,6 +15,11 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
+	"log"
+	"net/http"
+	"os"
+	"strings"
+	"time"
 )
 
 // homeDir retrieves the user's home directory
@@ -134,16 +132,7 @@ func main() {
 		fmt.Errorf("%s", err.Error())
 	}
 
-	// Start the webhook server in a goroutine
-	go func() {
-		http.HandleFunc("/validate", ValidateDeployment)
-		log.Println("Starting webhook server on :8000...")
-		// local go for certs/tls.crt and certs/tls.key
-		err := http.ListenAndServeTLS(":8000", "/certs/tls.crt", "/certs/tls.key", nil) // k8s
-		if err != nil {
-			log.Fatalf("Failed to start webhook server: %v", err)
-		}
-	}()
+	http.HandleFunc("/validate", ValidateDeployment)
 
 	ch := make(chan struct{})
 	// factory
@@ -153,13 +142,6 @@ func main() {
 	c.Run(ch)
 	fmt.Println(factory)
 	factory.Apps().V1().Deployments().Informer()
-
-	// Block forever
-	select {}
-}
-
-type Admitter struct {
-	Request *admissionv1.AdmissionRequest
 }
 
 func parseRequest(r *http.Request) (*admissionv1.AdmissionReview, error) {
@@ -184,125 +166,36 @@ func parseRequest(r *http.Request) (*admissionv1.AdmissionReview, error) {
 	return &a, nil
 }
 
-func scanImageWithTrivy(image string) (bool, string, error) {
-	// cmd := exec.Command("trivy", "image", "--quiet", "--severity", "HIGH,CRITICAL", "--format", "json", image)
-	// out, err := cmd.Output()
-	cmd := exec.Command(
-		"trivy",
-		"image",
-		"--scanners", "vuln",
-		"--server", "http://trivy-server-service.default.svc:8080", // [service_name].[namespace].svc:[port] (if not port 80)
-		"--format", "json",
-		image,
-	)
-	out, err := cmd.Output()
-	if err != nil {
-		return false, "", fmt.Errorf("trivy scan failed for %s: %v", image, err)
-	}
-	var result map[string]interface{}
-	if err := json.Unmarshal(out, &result); err != nil {
-		return false, "", fmt.Errorf("failed to parse trivy output: %v", err)
-	}
-	// Check if vulnerabilities found
-	vulns := []string{}
-	log.Println("❗CVEs Found: ")
-	if results, ok := result["Results"].([]interface{}); ok {
-		for _, r := range results {
-			rmap := r.(map[string]interface{})
-			if vlist, ok := rmap["Vulnerabilities"].([]interface{}); ok {
-				for _, v := range vlist {
-					vmap := v.(map[string]interface{})
-					severity := vmap["Severity"].(string)
-					if severity == "HIGH" || severity == "CRITICAL" {
-						msg := fmt.Sprintf("   - 🔥 %s\n", vmap["VulnerabilityID"].(string))
-						//vulns = append(vulns, vmap["VulnerabilityID"].(string))
-						vulns = append(vulns, msg)
-					}
-				}
-			}
-		}
-	}
-	if len(vulns) > 0 {
-		return false, strings.Join(vulns, ","), nil
-	}
-	return true, "", nil
+type Admitter struct {
+	Request *admissionv1.AdmissionRequest
 }
+
 func ValidateDeployment(w http.ResponseWriter, r *http.Request) {
-	log.Println("Received /validate request")
 	in, err := parseRequest(r)
 	if err != nil {
-		log.Printf("Error parsing admission request: %v", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
+	//adm := Admitter{
+	//	Request: in.Request,
+	//}
 	var dep appsv1.Deployment
 	if err := json.Unmarshal(in.Request.Object.Raw, &dep); err != nil {
-		log.Printf("Failed to unmarshal deployment: %v", err)
 		http.Error(w, fmt.Sprintf("could not unmarshal deployment: %v", err), http.StatusBadRequest)
 		return
 	}
 	images := []string{}
-	denied := false
-	var reasons []string
-	BYPASS_CVE_DENIED := false
-	// InitContainers
-	for _, c := range dep.Spec.Template.Spec.InitContainers {
-		for _, e := range c.Env {
-			if e.Name == "BYPASS_CVE_DENIED" && (e.Value == "yes" || e.Value == "true") {
-				BYPASS_CVE_DENIED = true
-			}
-		}
-		images = append(images, c.Image)
-	}
-	// Containers
 	for _, c := range dep.Spec.Template.Spec.Containers {
-		for _, e := range c.Env {
-			if e.Name == "BYPASS_CVE_DENIED" && (e.Value == "yes" || e.Value == "true") {
-				BYPASS_CVE_DENIED = true
-			}
-		}
 		images = append(images, c.Image)
 	}
-	for _, image := range images {
-		log.Println("────────────────────────────────────────────────────")
-		log.Printf("🛡️  Deployment Image Scanning Started : %s\n", image)
-		if BYPASS_CVE_DENIED {
-			log.Println("📦 BYPASS_CVE_DENIED: true/yes")
-		} else {
-			log.Println("📦 BYPASS_CVE_DENIED: default(false/no)")
-		}
-		ok, vulns, err := scanImageWithTrivy(image)
-		if err != nil {
-			log.Printf("Error scanning image %s: %v", image, err)
-			continue
-		}
-		log.Println("────────────────────────────────────────────────────")
-		if !ok {
-			denied = true
-			reasons = append(reasons, fmt.Sprintf("%s (CVE: %s)", image, vulns))
-		}
-	}
-	message := "Images allowed"
-	if denied {
-		message = fmt.Sprintf("Denied images due to total CVEs across %v images: %v", len(images), reasons)
-		log.Printf("Denied images due to CVEs: %v", reasons)
-	}
-
-	// look for BYPASS_CVE env - you need to skip
-	if BYPASS_CVE_DENIED {
-		log.Printf("It have CVE across all the %v images, but we are skipping as BYPASS_CVE_DENIED set true", len(images))
-		denied = false
-	}
-
-	log.Printf("Validating Deployment: %s, Images: %v", dep.Name, images)
 	response := admissionv1.AdmissionReview{
 		TypeMeta: in.TypeMeta,
 		Response: &admissionv1.AdmissionResponse{
 			UID:     in.Request.UID,
-			Allowed: !denied,
+			Allowed: false,
 			Result: &metav1.Status{
-				Message: message,
+				Message: fmt.Sprintf("Denied images: %v", images),
 			},
 		},
 	}
@@ -310,12 +203,8 @@ func ValidateDeployment(w http.ResponseWriter, r *http.Request) {
 	jout, err := json.Marshal(response)
 	if err != nil {
 		e := fmt.Sprintf("could not parse admission response: %v", err)
-		log.Println(e)
 		http.Error(w, e, http.StatusInternalServerError)
 		return
 	}
-	if _, err := w.Write(jout); err != nil {
-		log.Printf("Failed to write response: %v", err)
-	}
-	log.Println("Admission response sent")
+	w.Write(jout)
 }
