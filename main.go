@@ -132,7 +132,15 @@ func main() {
 		fmt.Errorf("%s", err.Error())
 	}
 
-	http.HandleFunc("/validate", ValidateDeployment)
+	// Start the webhook server in a goroutine
+	go func() {
+		http.HandleFunc("/validate", ValidateDeployment)
+		log.Println("Starting webhook server on :8000...")
+		err := http.ListenAndServeTLS(":8000", "/certs/tls.crt", "/certs/tls.key", nil)
+		if err != nil {
+			log.Fatalf("Failed to start webhook server: %v", err)
+		}
+	}()
 
 	ch := make(chan struct{})
 	// factory
@@ -142,6 +150,9 @@ func main() {
 	c.Run(ch)
 	fmt.Println(factory)
 	factory.Apps().V1().Deployments().Informer()
+
+	// Block forever
+	select {}
 }
 
 func parseRequest(r *http.Request) (*admissionv1.AdmissionReview, error) {
@@ -171,8 +182,10 @@ type Admitter struct {
 }
 
 func ValidateDeployment(w http.ResponseWriter, r *http.Request) {
+	log.Println("Received /validate request")
 	in, err := parseRequest(r)
 	if err != nil {
+		log.Printf("Error parsing admission request: %v", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -182,6 +195,7 @@ func ValidateDeployment(w http.ResponseWriter, r *http.Request) {
 	//}
 	var dep appsv1.Deployment
 	if err := json.Unmarshal(in.Request.Object.Raw, &dep); err != nil {
+		log.Printf("Failed to unmarshal deployment: %v", err)
 		http.Error(w, fmt.Sprintf("could not unmarshal deployment: %v", err), http.StatusBadRequest)
 		return
 	}
@@ -189,6 +203,7 @@ func ValidateDeployment(w http.ResponseWriter, r *http.Request) {
 	for _, c := range dep.Spec.Template.Spec.Containers {
 		images = append(images, c.Image)
 	}
+	log.Printf("Validating Deployment: %s, Images: %v", dep.Name, images)
 	response := admissionv1.AdmissionReview{
 		TypeMeta: in.TypeMeta,
 		Response: &admissionv1.AdmissionResponse{
@@ -203,8 +218,12 @@ func ValidateDeployment(w http.ResponseWriter, r *http.Request) {
 	jout, err := json.Marshal(response)
 	if err != nil {
 		e := fmt.Sprintf("could not parse admission response: %v", err)
+		log.Println(e)
 		http.Error(w, e, http.StatusInternalServerError)
 		return
 	}
-	w.Write(jout)
+	if _, err := w.Write(jout); err != nil {
+		log.Printf("Failed to write response: %v", err)
+	}
+	log.Println("Admission response sent")
 }

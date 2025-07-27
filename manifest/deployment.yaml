@@ -2,8 +2,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: k8s-custom-controller
-  labels:
-    k8s.custom.controller: k8s-custom-controller
 spec:
   replicas: 1
   selector:
@@ -16,4 +14,12 @@ spec:
     spec:
       containers:
         - name: k8s-controller
-          image: manzilrahul/k8s-custom-controller:1.0.0
+          image: manzilrahul/k8s-custom-controller:1.0.9
+          volumeMounts:
+            - name: webhook-certs
+              mountPath: /certs      # Your code expects "certs/tls.crt"
+              readOnly: true
+      volumes:
+        - name: webhook-certs
+          secret:
+            secretName: k8s-controller-tls

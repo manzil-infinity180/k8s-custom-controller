@@ -1,6 +1,6 @@
 APP_NAME = k8s-custom-controller
 DOCKER_USER = manzilrahul
-VERSION ?= 1.0.5
+VERSION ?= 1.0.9
 IMAGE_NAME = $(DOCKER_USER)/$(APP_NAME)
 
 # 🖼️ Logo banner

@@ -1,0 +1,38 @@
+# Source: chart/templates/clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: k8s-controller-helm-chart
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: [ "get", "list", "watch", "create", "update", "patch" ]
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "list", "watch", "create", "update"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["get", "list", "watch", "create", "update"]
+  - apiGroups: [ "admissionregistration.k8s.io" ]
+    resources: [ "validatingwebhookconfigurations" ]
+    verbs: [ "get", "list", "watch", "create", "update", "patch" ]
+  - apiGroups: [ "" ]
+    resources: [ "secrets" ]
+    verbs: [ "get", "list", "watch", "create", "update", "patch" ]
+
+
+---
+# Source: chart/templates/clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: k8s-controller-helm-chart
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: example1
+roleRef:
+  kind: ClusterRole
+  name: k8s-controller-helm-chart
+  apiGroup: rbac.authorization.k8s.io
+---

@@ -1,0 +1,48 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: example1
+
+---
+
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: webhook1
+  annotations:
+    cert-manager.io/inject-ca-from: example1/webhook1-certificate
+webhooks:
+  - name: k8s-custom-controller-service.example1.svc
+    admissionReviewVersions:
+      - v1
+    clientConfig:
+      service:
+        name: k8s-custom-controller-service
+        namespace: example1
+        path: /validate
+        port: 443
+    sideEffects: None
+
+---
+
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: webhook1-certificate
+  namespace: example1
+spec:
+  secretName: webhook1-certificate
+  dnsNames:
+    - k8s-custom-controller-service.example1.svc
+  issuerRef:
+    name: selfsigned
+
+---
+
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: selfsigned
+  namespace: example1
+spec:
+  selfSigned: {}
