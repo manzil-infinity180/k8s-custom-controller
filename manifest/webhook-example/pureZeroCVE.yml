@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deployment-all-secure
+  namespace: example1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: all-secure
+  template:
+    metadata:
+      labels:
+        app: all-secure
+    spec:
+      initContainers:
+        - name: init-secure
+          image: cgr.dev/chainguard/busybox:latest  # 0 CVEs
+          command: ["sh", "-c", "echo Init container is secure"]
+      containers:
+        - name: main-secure
+          image: cgr.dev/chainguard/nginx:latest    # 0 CVEs
+          ports:
+            - containerPort: 80

@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deployment-init-secure
+  namespace: example1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: init-secure
+  template:
+    metadata:
+      labels:
+        app: init-secure
+    spec:
+      initContainers:
+        - name: init-secure
+          image: cgr.dev/chainguard/busybox:latest  # 0 CVEs
+          command: ["sh", "-c", "echo Init container is secure"]
+      containers:
+        - name: main-vulnerable
+          image: nginx:1.19    # Will have CVEs
+          ports:
+            - containerPort: 80
