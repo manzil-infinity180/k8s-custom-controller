@@ -18,6 +18,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 )
@@ -155,6 +156,10 @@ func main() {
 	select {}
 }
 
+type Admitter struct {
+	Request *admissionv1.AdmissionRequest
+}
+
 func parseRequest(r *http.Request) (*admissionv1.AdmissionReview, error) {
 	if r.Header.Get("Content-Type") != "application/json" {
 		return nil, fmt.Errorf("Content-Type: %q should be %q",
@@ -177,10 +182,37 @@ func parseRequest(r *http.Request) (*admissionv1.AdmissionReview, error) {
 	return &a, nil
 }
 
-type Admitter struct {
-	Request *admissionv1.AdmissionRequest
+func scanImageWithTrivy(image string) (bool, string, error) {
+	cmd := exec.Command("trivy", "image", "--quiet", "--severity", "HIGH,CRITICAL", "--format", "json", image)
+	out, err := cmd.Output()
+	if err != nil {
+		return false, "", fmt.Errorf("trivy scan failed for %s: %v", image, err)
+	}
+	var result map[string]interface{}
+	if err := json.Unmarshal(out, &result); err != nil {
+		return false, "", fmt.Errorf("failed to parse trivy output: %v", err)
+	}
+	// Check if vulnerabilities found
+	vulns := []string{}
+	if results, ok := result["Results"].([]interface{}); ok {
+		for _, r := range results {
+			rmap := r.(map[string]interface{})
+			if vlist, ok := rmap["Vulnerabilities"].([]interface{}); ok {
+				for _, v := range vlist {
+					vmap := v.(map[string]interface{})
+					severity := vmap["Severity"].(string)
+					if severity == "HIGH" || severity == "CRITICAL" {
+						vulns = append(vulns, vmap["VulnerabilityID"].(string))
+					}
+				}
+			}
+		}
+	}
+	if len(vulns) > 0 {
+		return false, strings.Join(vulns, ","), nil
+	}
+	return true, "", nil
 }
-
 func ValidateDeployment(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received /validate request")
 	in, err := parseRequest(r)
@@ -190,9 +222,6 @@ func ValidateDeployment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//adm := Admitter{
-	//	Request: in.Request,
-	//}
 	var dep appsv1.Deployment
 	if err := json.Unmarshal(in.Request.Object.Raw, &dep); err != nil {
 		log.Printf("Failed to unmarshal deployment: %v", err)
@@ -200,17 +229,40 @@ func ValidateDeployment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	images := []string{}
+	denied := false
+	var reasons []string
+	// InitContainers
+	for _, c := range dep.Spec.Template.Spec.InitContainers {
+		images = append(images, c.Image)
+	}
+	// Containers
 	for _, c := range dep.Spec.Template.Spec.Containers {
 		images = append(images, c.Image)
 	}
+	for _, image := range images {
+		ok, vulns, err := scanImageWithTrivy(image)
+		if err != nil {
+			log.Printf("Error scanning image %s: %v", image, err)
+			continue
+		}
+		if !ok {
+			denied = true
+			reasons = append(reasons, fmt.Sprintf("%s (CVE: %s)", image, vulns))
+		}
+	}
+	message := "Images allowed"
+	if denied {
+		message = fmt.Sprintf("Denied images due to CVEs: %v", reasons)
+	}
+
 	log.Printf("Validating Deployment: %s, Images: %v", dep.Name, images)
 	response := admissionv1.AdmissionReview{
 		TypeMeta: in.TypeMeta,
 		Response: &admissionv1.AdmissionResponse{
 			UID:     in.Request.UID,
-			Allowed: false,
+			Allowed: !denied,
 			Result: &metav1.Status{
-				Message: fmt.Sprintf("Denied images: %v", images),
+				Message: message,
 			},
 		},
 	}
