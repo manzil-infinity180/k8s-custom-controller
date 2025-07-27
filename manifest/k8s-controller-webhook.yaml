@@ -35,7 +35,6 @@ webhooks:
     admissionReviewVersions:
       - v1
     sideEffects: None
-    timeoutSeconds: 30
     clientConfig:
       service:
         name: k8s-custom-controller-service
@@ -67,7 +66,7 @@ spec:
     spec:
       containers:
         - name: k8s-controller
-          image: manzilrahul/k8s-custom-controller:1.0.15
+          image: manzilrahul/k8s-custom-controller:1.0.9
           volumeMounts:
             - name: webhook-certs
               mountPath: /certs
@@ -77,8 +76,6 @@ spec:
               value: "/certs/tls.crt"
             - name: TLS_KEY_FILE
               value: "/certs/tls.key"
-#            - name: BYPASS_CVE_DENIED
-#              value: "yes"  # yes or true (lowercase)
       volumes:
         - name: webhook-certs
           secret:
