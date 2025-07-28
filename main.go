@@ -4,6 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"os/exec"
+	"strings"
+	"time"
+
 	"github.com/joho/godotenv"
 	"github.com/manzil-infinity180/k8s-custom-controller/controller"
 	admissionv1 "k8s.io/api/admission/v1"
@@ -15,12 +22,6 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
-	"log"
-	"net/http"
-	"os"
-	"os/exec"
-	"strings"
-	"time"
 )
 
 // homeDir retrieves the user's home directory
@@ -183,7 +184,16 @@ func parseRequest(r *http.Request) (*admissionv1.AdmissionReview, error) {
 }
 
 func scanImageWithTrivy(image string) (bool, string, error) {
-	cmd := exec.Command("trivy", "image", "--quiet", "--severity", "HIGH,CRITICAL", "--format", "json", image)
+	// cmd := exec.Command("trivy", "image", "--quiet", "--severity", "HIGH,CRITICAL", "--format", "json", image)
+	// out, err := cmd.Output()
+	cmd := exec.Command(
+		"trivy",
+		"image",
+		"--scanners", "vuln",
+		"--server", "http://trivy-server-service.default.svc:8080", // [service_name].[namespace].svc:[port] (if not port 80)
+		"--format", "json",
+		image,
+	)
 	out, err := cmd.Output()
 	if err != nil {
 		return false, "", fmt.Errorf("trivy scan failed for %s: %v", image, err)
