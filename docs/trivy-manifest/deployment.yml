@@ -1,0 +1,31 @@
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: trivy-server
+      labels:
+        app: trivy-server
+    spec:
+      replicas: 1 # You can adjust the number of replicas for high availability
+      selector:
+        matchLabels:
+          app: trivy-server
+      template:
+        metadata:
+          labels:
+            app: trivy-server
+        spec:
+          containers:
+          - name: trivy-server
+            image: aquasec/trivy:latest # Use a specific version instead of latest in production
+            args: ["server", "--listen", "0.0.0.0:8080"] # Listen on all interfaces
+            ports:
+            - containerPort: 8080
+              name: http
+            # Optional: Add resource limits and requests for better resource management
+            # resources:
+            #   limits:
+            #     cpu: "500m"
+            #     memory: "512Mi"
+            #   requests:
+            #     cpu: "250m"
+            #     memory: "256Mi"
