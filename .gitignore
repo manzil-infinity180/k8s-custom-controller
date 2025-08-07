@@ -6,3 +6,4 @@ vendor\
 vendor
 .env
 results.json
+certs
