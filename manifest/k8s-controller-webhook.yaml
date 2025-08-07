@@ -67,7 +67,7 @@ spec:
     spec:
       containers:
         - name: k8s-controller
-          image: manzilrahul/k8s-custom-controller:1.0.11
+          image: manzilrahul/k8s-custom-controller:1.0.14
           volumeMounts:
             - name: webhook-certs
               mountPath: /certs
@@ -77,6 +77,8 @@ spec:
               value: "/certs/tls.crt"
             - name: TLS_KEY_FILE
               value: "/certs/tls.key"
+#            - name: BYPASS_CVE_DENIED
+#              value: "yes"  # yes or true (lowercase)
       volumes:
         - name: webhook-certs
           secret:
