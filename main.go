@@ -205,6 +205,7 @@ func scanImageWithTrivy(image string) (bool, string, error) {
 	}
 	// Check if vulnerabilities found
 	vulns := []string{}
+	log.Println("❗CVEs Found: ")
 	if results, ok := result["Results"].([]interface{}); ok {
 		for _, r := range results {
 			rmap := r.(map[string]interface{})
@@ -213,7 +214,9 @@ func scanImageWithTrivy(image string) (bool, string, error) {
 					vmap := v.(map[string]interface{})
 					severity := vmap["Severity"].(string)
 					if severity == "HIGH" || severity == "CRITICAL" {
-						vulns = append(vulns, vmap["VulnerabilityID"].(string))
+						msg := fmt.Sprintf("   - 🔥 %s\n", vmap["VulnerabilityID"].(string))
+						//vulns = append(vulns, vmap["VulnerabilityID"].(string))
+						vulns = append(vulns, msg)
 					}
 				}
 			}
@@ -262,12 +265,19 @@ func ValidateDeployment(w http.ResponseWriter, r *http.Request) {
 		images = append(images, c.Image)
 	}
 	for _, image := range images {
-		log.Printf("started scanning for [ %s ]", image)
+		log.Println("────────────────────────────────────────────────────")
+		log.Printf("🛡️  Deployment Image Scanning Started : %s\n", image)
+		if BYPASS_CVE_DENIED {
+			log.Println("📦 BYPASS_CVE_DENIED: true/yes")
+		} else {
+			log.Println("📦 BYPASS_CVE_DENIED: default(false/no)")
+		}
 		ok, vulns, err := scanImageWithTrivy(image)
 		if err != nil {
 			log.Printf("Error scanning image %s: %v", image, err)
 			continue
 		}
+		log.Println("────────────────────────────────────────────────────")
 		if !ok {
 			denied = true
 			reasons = append(reasons, fmt.Sprintf("%s (CVE: %s)", image, vulns))
