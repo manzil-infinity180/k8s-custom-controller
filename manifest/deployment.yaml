@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: k8s-controller
-          image: manzilrahul/k8s-custom-controller:1.0.9
+          image: manzilrahul/k8s-custom-controller:latest
           volumeMounts:
             - name: webhook-certs
               mountPath: /certs      # Your code expects "certs/tls.crt"

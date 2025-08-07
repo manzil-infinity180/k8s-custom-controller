@@ -138,7 +138,7 @@ func main() {
 	go func() {
 		http.HandleFunc("/validate", ValidateDeployment)
 		log.Println("Starting webhook server on :8000...")
-		err := http.ListenAndServeTLS(":8000", "/certs/tls.crt", "/certs/tls.key", nil)
+		err := http.ListenAndServeTLS(":8000", "certs/tls.crt", "certs/tls.key", nil)
 		if err != nil {
 			log.Fatalf("Failed to start webhook server: %v", err)
 		}

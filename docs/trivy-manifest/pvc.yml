@@ -3,6 +3,7 @@ kind: PersistentVolumeClaim
 metadata:
   name: trivy-cache-pvc
 spec:
+  storageClassName: standard
   accessModes:
     - ReadWriteOnce
   resources:
