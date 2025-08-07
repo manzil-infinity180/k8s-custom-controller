@@ -22,3 +22,6 @@ spec:
           image: nginx:1.19    # Will have CVEs
           ports:
             - containerPort: 80
+          env:
+            - name: BYPASS_CVE_DENIED
+              value: "yes"  # yes or true (lowercase)

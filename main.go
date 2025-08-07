@@ -138,7 +138,8 @@ func main() {
 	go func() {
 		http.HandleFunc("/validate", ValidateDeployment)
 		log.Println("Starting webhook server on :8000...")
-		err := http.ListenAndServeTLS(":8000", "certs/tls.crt", "certs/tls.key", nil)
+		// local go for certs/tls.crt and certs/tls.key
+		err := http.ListenAndServeTLS(":8000", "/certs/tls.crt", "/certs/tls.key", nil) // k8s
 		if err != nil {
 			log.Fatalf("Failed to start webhook server: %v", err)
 		}
@@ -241,15 +242,27 @@ func ValidateDeployment(w http.ResponseWriter, r *http.Request) {
 	images := []string{}
 	denied := false
 	var reasons []string
+	BYPASS_CVE_DENIED := false
 	// InitContainers
 	for _, c := range dep.Spec.Template.Spec.InitContainers {
+		for _, e := range c.Env {
+			if e.Name == "BYPASS_CVE_DENIED" && (e.Value == "yes" || e.Value == "true") {
+				BYPASS_CVE_DENIED = true
+			}
+		}
 		images = append(images, c.Image)
 	}
 	// Containers
 	for _, c := range dep.Spec.Template.Spec.Containers {
+		for _, e := range c.Env {
+			if e.Name == "BYPASS_CVE_DENIED" && (e.Value == "yes" || e.Value == "true") {
+				BYPASS_CVE_DENIED = true
+			}
+		}
 		images = append(images, c.Image)
 	}
 	for _, image := range images {
+		log.Printf("started scanning for [ %s ]", image)
 		ok, vulns, err := scanImageWithTrivy(image)
 		if err != nil {
 			log.Printf("Error scanning image %s: %v", image, err)
@@ -262,7 +275,14 @@ func ValidateDeployment(w http.ResponseWriter, r *http.Request) {
 	}
 	message := "Images allowed"
 	if denied {
-		message = fmt.Sprintf("Denied images due to CVEs: %v", reasons)
+		message = fmt.Sprintf("Denied images due to total CVEs across %v images: %v", len(images), reasons)
+		log.Printf("Denied images due to CVEs: %v", reasons)
+	}
+
+	// look for BYPASS_CVE env - you need to skip
+	if BYPASS_CVE_DENIED {
+		log.Printf("It have CVE across all the %v images, but we are skipping as BYPASS_CVE_DENIED set true", len(images))
+		denied = false
 	}
 
 	log.Printf("Validating Deployment: %s, Images: %v", dep.Name, images)
