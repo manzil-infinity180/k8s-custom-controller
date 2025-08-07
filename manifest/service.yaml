@@ -7,6 +7,6 @@ spec:
     k8s.custom.controller: k8s-custom-controller
   ports:
     - protocol: TCP
-      port: 8000
+      port: 443
       targetPort: 8000 # your app listen to that (Dockerfile EXPOSE)
   type: NodePort

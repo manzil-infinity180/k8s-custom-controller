@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trivy-server
+  labels:
+    app: trivy-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: trivy-server
+  template:
+    metadata:
+      labels:
+        app: trivy-server
+    spec:
+      # initContainers:
+      #   - name: init-trivy-db
+      #     image: aquasec/trivy:latest
+      #     command: ["trivy", "image", "--download-db-only"]
+      #     volumeMounts:
+      #       - name: trivy-cache
+      #         mountPath: /root/.cache/trivy
+      containers:
+        - name: trivy-server
+          image: aquasec/trivy:latest
+          args: ["server", "--listen", "0.0.0.0:8080"]
+          ports:
+            - containerPort: 8080
+              name: http
+          volumeMounts:
+            - name: trivy-cache
+              mountPath: /root/.cache/trivy
+      volumes:
+        - name: trivy-cache
+          persistentVolumeClaim:
+            claimName: trivy-cache-pvc
+

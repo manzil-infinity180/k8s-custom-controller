@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deployment-with-cves
+  namespace: example1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: with-cves
+  template:
+    metadata:
+      labels:
+        app: with-cves
+    spec:
+      initContainers:
+        - name: init-vulnerable
+          image: nginx:1.19   # Likely contains CVEs
+          command: ["sh", "-c", "echo Init container with CVEs"]
+      containers:
+        - name: main-vulnerable
+          image: cgr.dev/chainguard/nginx:latest   # Main container with CVEs
+          ports:
+            - containerPort: 80

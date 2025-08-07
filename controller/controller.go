@@ -75,7 +75,9 @@ func (c *controller) processItem() bool {
 	}
 	err = c.syncDeployment(namespace, name)
 	if err != nil {
+		fmt.Println("────────────────────────────────────────────────────")
 		fmt.Printf("sync deployment, %s\n", err.Error())
+		fmt.Println("────────────────────────────────────────────────────")
 		return false
 	}
 	return true
@@ -117,12 +119,16 @@ func (c *controller) syncDeployment(ns, name string) error {
 
 	_, err = c.clientset.CoreV1().Services(ns).Create(ctx, &service, metav1.CreateOptions{})
 	if err != nil {
+		fmt.Println("────────────────────────────────────────────────────")
 		fmt.Printf("sync deployment, %s\n", err.Error())
+		fmt.Println("────────────────────────────────────────────────────")
 	}
 
 	err = c.createIngress(ns, name)
 	if err != nil {
+		fmt.Println("────────────────────────────────────────────────────")
 		fmt.Printf("sync deployment, %s\n", err.Error())
+		fmt.Println("────────────────────────────────────────────────────")
 	}
 	return nil
 }
@@ -193,18 +199,17 @@ func depLabels(dep appsv1.Deployment) map[string]string {
 func (c *controller) handleAdd(obj interface{}) {
 	deployment, ok := obj.(*appsv1.Deployment)
 	if !ok {
-		fmt.Println("\n Not a Deployment")
+		fmt.Println("\n❌ Not a Deployment object")
 		return
 	}
 
-	fmt.Printf("Deployment Added:\n")
-	fmt.Printf("Name: %s\n", deployment.Name)
-
-	fmt.Printf("ADDED: Name=%s, Namespace=%s, UID=%s, Created=%s\n",
-		deployment.Name,
-		deployment.Namespace,
-		string(deployment.UID),
-		deployment.CreationTimestamp)
+	fmt.Println("────────────────────────────────────────────────────")
+	fmt.Println("📦 Deployment Added")
+	fmt.Printf("🔤 Name:      %s\n", deployment.Name)
+	fmt.Printf("📂 Namespace: %s\n", deployment.Namespace)
+	fmt.Printf("🆔 UID:       %s\n", deployment.UID)
+	fmt.Printf("🕓 Created:   %s\n", deployment.CreationTimestamp.UTC().Format("2006-01-02 15:04:05 MST"))
+	fmt.Println("────────────────────────────────────────────────────")
 
 	c.queue.Add(obj)
 }
@@ -213,17 +218,17 @@ func (c *controller) handleAdd(obj interface{}) {
 func (c *controller) handleDel(obj interface{}) {
 	deployment, ok := obj.(*appsv1.Deployment)
 	if !ok {
-		fmt.Println("\n Not a Deployment")
+		fmt.Println("\n❌ Not a Deployment")
 		return
 	}
-	fmt.Printf("Deployment Deleted:\n")
-	fmt.Printf("Name: %s\n", deployment.Name)
 
-	fmt.Printf("DELETED: Name=%s, Namespace=%s, UID=%s, Created=%s\n",
-		deployment.Name,
-		deployment.Namespace,
-		string(deployment.UID),
-		deployment.CreationTimestamp)
+	fmt.Println("────────────────────────────────────────────────────")
+	fmt.Println("📦 Deployment DELETED")
+	fmt.Printf("🔤 Name:      %s\n", deployment.Name)
+	fmt.Printf("📂 Namespace: %s\n", deployment.Namespace)
+	fmt.Printf("🆔 UID:       %s\n", deployment.UID)
+	fmt.Printf("🕓 Deleted:   %s\n", deployment.CreationTimestamp.UTC().Format("2006-01-02 15:04:05 MST"))
+	fmt.Println("────────────────────────────────────────────────────")
 
 	//c.queue.Add(obj)
 }
