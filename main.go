@@ -187,6 +187,7 @@ func parseRequest(r *http.Request) (*admissionv1.AdmissionReview, error) {
 func scanImageWithTrivy(image string) (bool, string, error) {
 	// cmd := exec.Command("trivy", "image", "--quiet", "--severity", "HIGH,CRITICAL", "--format", "json", image)
 	// out, err := cmd.Output()
+	// TODO: Need to make it dynamic to support all trivy server (will go with env)
 	cmd := exec.Command(
 		"trivy",
 		"image",

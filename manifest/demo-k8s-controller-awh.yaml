@@ -1,0 +1,157 @@
+# full helm --dry-run
+---
+# Source: chart/templates/namespace.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: example2
+---
+# Source: chart/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: k8s-controller-helm-chart
+  labels:
+    helm.sh/chart: chart-0.1.0
+    app.kubernetes.io/name: chart
+    app.kubernetes.io/instance: k8s-controller-helm
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+automountServiceAccountToken: true
+---
+# Source: chart/templates/clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: k8s-controller-helm-chart
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: [ "get", "list", "watch", "create", "update", "patch" ]
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "list", "watch", "create", "update"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["get", "list", "watch", "create", "update"]
+  - apiGroups: [ "admissionregistration.k8s.io" ]
+    resources: [ "validatingwebhookconfigurations" ]
+    verbs: [ "get", "list", "watch", "create", "update", "patch" ]
+  - apiGroups: [ "" ]
+    resources: [ "secrets" ]
+    verbs: [ "get", "list", "watch", "create", "update", "patch" ]
+---
+# Source: chart/templates/clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: k8s-controller-helm-chart
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: example2
+roleRef:
+  kind: ClusterRole
+  name: k8s-controller-helm-chart
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: chart/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: k8s-controller-helm-chart
+  namespace: example2
+spec:
+  selector:
+    k8s.custom.controller: k8s-custom-controller
+  ports:
+    - protocol: TCP
+      port: 443
+      targetPort: 8000
+  type: ClusterIP
+---
+# Source: chart/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: k8s-controller-helm-chart
+  namespace: example2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      k8s.custom.controller: k8s-custom-controller
+  template:
+    metadata:
+      labels:
+        k8s.custom.controller: k8s-custom-controller
+    spec:
+      containers:
+        - name: chart
+          image: "manzilrahul/k8s-custom-controller:latest"
+          volumeMounts:
+            - name: webhook-certs1
+              mountPath: /certs
+              readOnly: true
+          env:
+            - name: TLS_CERT_FILE
+              value: "/certs/tls.crt"
+            - name: TLS_KEY_FILE
+              value: "/certs/tls.key"
+      volumes:
+        - name: webhook-certs1
+          secret:
+            secretName: "chart-tls"
+---
+# Source: chart/templates/cert-manager.yaml
+# for running this you need to have cert-manager install on your cluster
+# Installation: https://cert-manager.io/docs/installation/
+---
+# Source: chart/templates/cert-manager.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: webhook1-certificate
+  namespace: example2
+spec:
+  secretName: "chart-tls"            # Secret mounted in deployment
+  dnsNames:
+    - "k8s-controller-helm-chart.example2.svc"
+    - "k8s-controller-helm-chart.example2.svc.cluster.local"
+  issuerRef:
+    name: selfsigned
+---
+# Source: chart/templates/cert-manager.yaml
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: selfsigned
+  namespace: example2
+spec:
+  selfSigned: {}
+---
+# Source: chart/templates/validating-webhook-conf.yaml
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: webhook2
+  annotations:
+    cert-manager.io/inject-ca-from: "example2/webhook2-certificate"
+webhooks:
+  - name: "k8s-controller-helm-chart.example2.svc"
+    admissionReviewVersions:
+      - v1
+    sideEffects: None
+    timeoutSeconds: 30
+    clientConfig:
+      service:
+        name: k8s-controller-helm-chart
+        namespace: example2
+        path: /validate
+        port: 443
+    rules:
+      - apiGroups: [ "apps" ]
+        apiVersions: [ "v1" ]
+        operations: [ "CREATE" ]
+        resources: [ "deployments" ]
+    failurePolicy: Fail

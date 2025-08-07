@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.trivy.name }}
+  labels:
+    app: {{ .Values.trivy.name }}
+spec:
+  replicas: 1 # You can adjust the number of replicas for high availability
+  selector:
+    matchLabels:
+      app: {{ .Values.trivy.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.trivy.name }}
+    spec:
+      containers:
+        - name: {{ .Values.trivy.name }}
+          image: "{{ .Values.trivy.image }}:{{ .Values.trivy.tag }}"# aquasec/trivy:latest # Use a specific version instead of latest in production
+          args: ["server", "--listen", "0.0.0.0:8080"] # Listen on all interfaces
+          ports:
+            - containerPort: 8080
+              name: http
+#          volumeMounts:
+#            - name: trivy-cache
+#              mountPath: /root/.cache/trivy
+#      volumes:
+#        - name: trivy-cache
+#          persistentVolumeClaim:
+#            claimName: trivy-cache-pvc
