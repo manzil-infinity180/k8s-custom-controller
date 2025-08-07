@@ -19,6 +19,6 @@ spec:
           command: ["sh", "-c", "echo Init container with CVEs"]
       containers:
         - name: main-vulnerable
-          image: nginx:1.19   # Main container with CVEs
+          image: cgr.dev/chainguard/nginx:latest   # Main container with CVEs
           ports:
             - containerPort: 80
