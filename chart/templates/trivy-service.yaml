@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: "{{ .Values.trivy.name }}-service"
+  labels:
+    app: {{ .Values.trivy.name }}
+spec:
+  selector:
+    app: {{ .Values.trivy.name }}
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+  type: ClusterIP

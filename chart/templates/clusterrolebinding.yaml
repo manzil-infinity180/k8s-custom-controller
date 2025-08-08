@@ -4,8 +4,8 @@ metadata:
   name: {{ include "chart.fullname" . }}
 subjects:
   - kind: ServiceAccount
-    name: {{ include "chart.serviceAccountName" . }}
-    namespace: {{ .Release.Namespace }}
+    name: default
+    namespace: {{ .Values.image.namespace }}
 roleRef:
   kind: ClusterRole
   name: {{ include "chart.fullname" . }}

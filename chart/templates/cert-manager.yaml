@@ -1,0 +1,24 @@
+# for running this you need to have cert-manager install on your cluster
+# Installation: https://cert-manager.io/docs/installation/
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: selfsigned
+  namespace: {{ .Values.image.namespace }}
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: "{{ .Values.webhook.name }}-certificate" #webhook1-certificate
+  namespace: {{ .Values.image.namespace }}
+spec:
+  secretName: "{{ .Chart.Name }}-tls"            # Secret mounted in deployment
+  dnsNames:
+    - "{{ include "chart.fullname" . }}.{{ .Values.image.namespace }}.svc"
+    - "{{ include "chart.fullname" . }}.{{ .Values.image.namespace }}.svc.cluster.local"
+  issuerRef:
+    name: selfsigned
+---

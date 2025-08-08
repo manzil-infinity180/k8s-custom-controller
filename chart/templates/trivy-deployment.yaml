@@ -1,23 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: trivy-server
-  namespace: default
+  name: {{ .Values.trivy.name }}
   labels:
-    app: trivy-server
+    app: {{ .Values.trivy.name }}
 spec:
   replicas: 1 # You can adjust the number of replicas for high availability
   selector:
     matchLabels:
-      app: trivy-server
+      app: {{ .Values.trivy.name }}
   template:
     metadata:
       labels:
-        app: trivy-server
+        app: {{ .Values.trivy.name }}
     spec:
       containers:
-        - name: trivy-server
-          image: aquasec/trivy:latest # Use a specific version instead of latest in production
+        - name: {{ .Values.trivy.name }}
+          image: "{{ .Values.trivy.image }}:{{ .Values.trivy.tag }}"# aquasec/trivy:latest # Use a specific version instead of latest in production
           args: ["server", "--listen", "0.0.0.0:8080"] # Listen on all interfaces
           ports:
             - containerPort: 8080

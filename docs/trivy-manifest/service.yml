@@ -2,6 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: trivy-server-service
+  namespace: default
   labels:
     app: trivy-server
 spec:
@@ -12,3 +13,6 @@ spec:
       port: 8080
       targetPort: 8080
   type: ClusterIP # Use ClusterIP for internal access, or NodePort/LoadBalancer for external access
+
+# [service-name].[service-namespace].svc:8080
+# trivy-server-service.default.svc:8080
