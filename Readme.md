@@ -1,3 +1,13 @@
+<div align="center">
+<p align="center">
+<img width="960" height="309" alt="final-k8s" src="https://github.com/user-attachments/assets/e5ef535e-a07a-4cd5-9fbd-926a0c62cf39" />
+</p>
+</div>
+
+[![Watch the demo video](https://github.com/user-attachments/assets/4ba51960-d9d2-4ac4-9272-c4ee3c5cf262)](https://www.youtube.com/watch?v=mAr62XBVbmg)
+> 📽️ Click the image above to watch the full 25-minute walkthrough on YouTube.  
+> It includes setup, explanation, CVE scan demo, and auto resource creation.
+
 # 🛡️ Kubernetes CVE Scanner with Custom Controller + Admission Webhook
 
 This project includes a **Kubernetes custom controller** that:
@@ -13,7 +23,6 @@ This project includes a **Kubernetes custom controller** that:
 
 Make sure you have a running Kubernetes cluster (like KinD, Minikube, or EKS).
 
----
 
 ### 2️⃣ Install `cert-manager`
 
@@ -28,6 +37,7 @@ kubectl apply -f docs/trivy-manifest/deployment.yml
 kubectl apply -f docs/trivy-manifest/service.yml
 ```
 Trivy will act as the backend scanner for your webhook.
+> Note: We are running using trivy client you can see the command [here](https://github.com/aquasecurity/trivy/discussions/2119)
 
 ### 4️⃣ Create Cluster Role & Bindings
 * Grant required permissions for:
@@ -49,22 +59,22 @@ kubectl apply -f manifest/cluster-permission.yaml
     - TLS Issuers + Certs
     - ValidatingWebhookConfiguration
 
-```bash
+```ts
 kubectl apply -f manifest/k8s-controller-webhook.yaml
 ```
 ### 6️⃣ Test Webhook
-```bash
+```ts
 # contain cve
-kubectl apply -f manifest/webhook-example/initContainerDeployment.yml 
+$ kubectl apply -f manifest/webhook-example/initContainerDeployment.yml
 # look for first time it might fail (look at the logs of the application (k8s-custom-controller) and 
 # see if they return a long list of CVE -> then start creating again (Working on to optimize) 
 
 # pure zero cve (does not contain cve) 
-kubectl apply -f manifest/webhook-example/pureZeroCVE.yml
+$ kubectl apply -f manifest/webhook-example/pureZeroCVE.yml
 
 # contain cve but bypass (i mean create the deployment even after having CVE) 
 # due to this parameter `name: BYPASS_CVE_DENIED` set as yes or true
-kubectl apply -f manifest/webhook-example/ZeroInitCVE.yml
+$ kubectl apply -f manifest/webhook-example/ZeroInitCVE.yml
 ```
 ### Todo: 
 - Better docs and guide
