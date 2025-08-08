@@ -2,11 +2,13 @@
 <p align="center">
 <img width="960" height="309" alt="final-k8s" src="https://github.com/user-attachments/assets/e5ef535e-a07a-4cd5-9fbd-926a0c62cf39" />
 </p>
-</div>
 
 [![Watch the demo video](https://github.com/user-attachments/assets/4ba51960-d9d2-4ac4-9272-c4ee3c5cf262)](https://www.youtube.com/watch?v=mAr62XBVbmg)
+</div>
+
 > 📽️ Click the image above to watch the full 25-minute walkthrough on YouTube.  
 > It includes setup, explanation, CVE scan demo, and auto resource creation.
+
 
 # 🛡️ Kubernetes CVE Scanner with Custom Controller + Admission Webhook
 
@@ -76,7 +78,15 @@ $ kubectl apply -f manifest/webhook-example/pureZeroCVE.yml
 # due to this parameter `name: BYPASS_CVE_DENIED` set as yes or true
 $ kubectl apply -f manifest/webhook-example/ZeroInitCVE.yml
 ```
-### Todo: 
-- Better docs and guide
+> Todo:
+> Better docs and guide
 
-Happy Scan-ing!
+<p align="center">
+<img width="450" height="450" alt="image" src="https://github.com/user-attachments/assets/92fe17a5-bffe-469d-beb3-0769bb85d4a5" />
+</p>
+
+## Author
+
+Built with 💙 by **Rahul Vishwakarma**
+
+> Happy Scan-ing!
