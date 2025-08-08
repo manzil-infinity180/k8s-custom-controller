@@ -12,7 +12,7 @@ spec:
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: webhook1-certificate
+  name: "{{ .Values.webhook.name }}-certificate" #webhook1-certificate
   namespace: {{ .Values.image.namespace }}
 spec:
   secretName: "{{ .Chart.Name }}-tls"            # Secret mounted in deployment
