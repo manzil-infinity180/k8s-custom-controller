@@ -1,55 +1,72 @@
-## The Architecture of Controllers
-Since controllers are in charge of meeting the desired state of the resources in Kubernetes, they somehow need to be informed about the changes on the resources and perform certain operations if needed. For this, controllers follow a special architecture to
+# 🛡️ Kubernetes CVE Scanner with Custom Controller + Admission Webhook
 
-1) observe the resources,
-2) inform any events (updating, deleting, adding) done on the resources,
-3) keep a local cache to decrease the load on API Server,
-4) keep a work queue to pick up events,
-5) run workers to perform reconciliation on resources picked up from work queue.
+This project includes a **Kubernetes custom controller** that:
+- Automatically creates **Services** and **Ingresses** for every `Deployment`.
+- Integrates with a **Validating Admission Webhook** to scan container images using **Trivy**.
+- Optionally allows skipping CVE checks with an environment variable.
 
- <a href="https://www.nakamasato.com/kubernetes-training/kubernetes-operator/client-go/informer/" >
-    <h4 class="text-yellow-300 text-lg">Ref: Official Docs</h4>
-    </a>
- <a href="https://github.com/kubernetes/community/blob/8cafef897a22026d42f5e5bb3f104febe7e29830/contributors/devel/controllers.md">
-    <h4 class="text-yellow-300 text-lg">Writing Controllers (Imp)</h4>
-    </a>
+---
 
-# Factory & Informers
+## 🚀 Installation Guide
 
-![image](https://github.com/user-attachments/assets/bb09fdaf-a1d8-4f9b-bfd4-a7914ebe6eba)
+### 1️⃣ Create a Kubernetes Cluster
 
-# Single Informer
+Make sure you have a running Kubernetes cluster (like KinD, Minikube, or EKS).
 
-![image](https://github.com/user-attachments/assets/bfc1720a-aab4-4595-bb4b-9559a3e98d74)
+---
 
-![image](https://github.com/user-attachments/assets/1af2d969-5b93-40f4-b375-219342c16041)
+### 2️⃣ Install `cert-manager`
 
+```bash
+kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.18.2/cert-manager.yaml
+```
+This will install the necessary CRDs and controllers for certificate management.
 
-[//]: # (https://github.com/user-attachments/assets/851d2b2b-d268-4894-a15a-dbe8b501b3cc)
+### 3️⃣ Deploy Trivy as a Service
+```bash
+kubectl apply -f docs/trivy-manifest/deployment.yml
+kubectl apply -f docs/trivy-manifest/service.yml
+```
+Trivy will act as the backend scanner for your webhook.
 
-## Definition : Informer
+### 4️⃣ Create Cluster Role & Bindings
+* Grant required permissions for:
+    - Deployments
+    - Services 
+    - Secrets 
+    - Ingresses 
+    - ValidatingWebhookConfigurations
+```bash
+kubectl apply -f manifest/cluster-permission.yaml
 
-Informer monitors the changes of target resource. An informer is created for each of the target resources if you need to handle multiple resources (e.g. podInformer, deploymentInformer).
+```
 
+### 5️⃣ Deploy Controller + Webhook
+* This manifest includes:
+    - Namespace
+    - Deployment
+    - Service
+    - TLS Issuers + Certs
+    - ValidatingWebhookConfiguration
 
+```bash
+kubectl apply -f manifest/k8s-controller-webhook.yaml
+```
+### 6️⃣ Test Webhook
+```bash
+# contain cve
+kubectl apply -f manifest/webhook-example/initContainerDeployment.yml 
+# look for first time it might fail (look at the logs of the application (k8s-custom-controller) and 
+# see if they return a long list of CVE -> then start creating again (Working on to optimize) 
 
-```md
-1) Initialize the Controller
-	* The NewController function sets up the Kubernetes controller with a work queue, informer, and WebSocket connection.
-	* It listens for Deployment events (Add, Update, Delete) and enqueues them.
+# pure zero cve (does not contain cve) 
+kubectl apply -f manifest/webhook-example/pureZeroCVE.yml
 
-2) Run the Controller
-	* The Run method waits for cache synchronization and starts the worker loop.
-	* It continuously processes events from the work queue.
+# contain cve but bypass (i mean create the deployment even after having CVE) 
+# due to this parameter `name: BYPASS_CVE_DENIED` set as yes or true
+kubectl apply -f manifest/webhook-example/ZeroInitCVE.yml
+```
+### Todo: 
+- Better docs and guide
 
-3) Process Deployment Events
-	* The processItem method retrieves Deployment events from the queue and determines the necessary action.
-	* It fetches the Deployment details and handles errors, deletions, and updates.
-
-4) Handle Deployment Changes
-	* `handleAdd`, `handleUpdate`, and `handleDel` respond to Deployment changes.
-	* Updates track Replica count and Image changes and send logs via WebSocket.
-
-5) Send Updates via WebSocket
-	* The updateLogs function logs and sends JSON messages about Deployment changes.
-	* The WebSocket connection ensures real-time updates for external systems.
+Happy Scan-ing!
