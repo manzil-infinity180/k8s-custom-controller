@@ -3,6 +3,54 @@ kind: Namespace
 metadata:
   name: example1
 ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: k8s-custom-controller
+  namespace: example1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      k8s.custom.controller: k8s-custom-controller
+  template:
+    metadata:
+      labels:
+        k8s.custom.controller: k8s-custom-controller
+    spec:
+      containers:
+        - name: k8s-controller
+          image: manzilrahul/k8s-custom-controller:1.0.15
+          volumeMounts:
+            - name: webhook-certs
+              mountPath: /certs
+              readOnly: true
+          env:
+            - name: TLS_CERT_FILE
+              value: "/certs/tls.crt"
+            - name: TLS_KEY_FILE
+              value: "/certs/tls.key"
+      #            - name: BYPASS_CVE_DENIED
+      #              value: "yes"  # yes or true (lowercase)
+      volumes:
+        - name: webhook-certs
+          secret:
+            secretName: k8s-controller-tls
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: k8s-custom-controller-service
+  namespace: example1
+spec:
+  selector:
+    k8s.custom.controller: k8s-custom-controller
+  ports:
+    - protocol: TCP
+      port: 443
+      targetPort: 8000
+  type: ClusterIP
+---
 apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
@@ -48,52 +96,3 @@ webhooks:
           operations: [ "CREATE" ]
           resources: [ "deployments" ]
     failurePolicy: Fail
-
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: k8s-custom-controller
-  namespace: example1
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      k8s.custom.controller: k8s-custom-controller
-  template:
-    metadata:
-      labels:
-        k8s.custom.controller: k8s-custom-controller
-    spec:
-      containers:
-        - name: k8s-controller
-          image: manzilrahul/k8s-custom-controller:1.0.15
-          volumeMounts:
-            - name: webhook-certs
-              mountPath: /certs
-              readOnly: true
-          env:
-            - name: TLS_CERT_FILE
-              value: "/certs/tls.crt"
-            - name: TLS_KEY_FILE
-              value: "/certs/tls.key"
-#            - name: BYPASS_CVE_DENIED
-#              value: "yes"  # yes or true (lowercase)
-      volumes:
-        - name: webhook-certs
-          secret:
-            secretName: k8s-controller-tls
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: k8s-custom-controller-service
-  namespace: example1
-spec:
-  selector:
-    k8s.custom.controller: k8s-custom-controller
-  ports:
-    - protocol: TCP
-      port: 443
-      targetPort: 8000
-  type: ClusterIP
