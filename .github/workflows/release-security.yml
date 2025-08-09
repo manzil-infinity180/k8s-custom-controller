@@ -47,7 +47,7 @@ jobs:
 
       # Cosign setup
       - name: Install Cosign
-        uses: sigstore/cosign-installer@v3.1.1
+        uses: sigstore/cosign-installer@v3.9.2
         with:
           cosign-release: 'v2.2.0'
 
@@ -110,7 +110,7 @@ jobs:
         uses: azure/setup-kubectl@v3
 
       - name: Install Cosign
-        uses: sigstore/cosign-installer@v3.1.1
+        uses: sigstore/cosign-installer@v3.9.2
 
       # Verify signatures before deployment
       - name: Verify Image Signatures
