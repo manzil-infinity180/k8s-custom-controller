@@ -29,14 +29,21 @@ jobs:
           version: v3.14.0
       - name: Lint chart
         run: helm lint ./chart
+
+      - name: Create charts tmp directory
+        run: |
+          mkdir charts-tmp
+          cp -a chart charts-tmp/deploydefender
+
       - name: Package chart
         run: |
           mkdir -p .dist
-          helm package ./chart --destination .dist
+          helm package charts-tmp/deploydefender --destination .dist
 
       - name: Login to GHCR (OCI)
         run: |
           helm registry login ghcr.io -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }}
+
       - name: Push to GHCR (OCI)
         run: |
            helm push .dist/deploydefender-*.tgz oci://ghcr.io/${{ github.repository_owner }}/charts
@@ -46,7 +53,7 @@ jobs:
         with:
           token: "${{ secrets.GITHUB_TOKEN }}"
           linting: off
-          charts_dir: chart
+          charts_dir: charts-tmp
 
     #   - name: Publish to ArtifactHub
     #     run: |
