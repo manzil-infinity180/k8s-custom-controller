@@ -1,12 +1,12 @@
 name: helm-release
 
-on:
-   pull_request:
-
 #on:
-#  push:
-#    tags:
-#      - 'defender-v*'
+#   pull_request:
+
+on:
+  push:
+    tags:
+      - 'defender-v*'
 
 permissions:
   contents: write

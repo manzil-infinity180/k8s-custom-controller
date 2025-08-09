@@ -1,12 +1,13 @@
 name: DeployDefender
 
-on:
-   pull_request:
-
 #on:
-#  push:
-#    tags:
-#      - v*
+#   pull_request:
+
+on:
+  push:
+    tags:
+      - v*
+
 permissions:
   contents: read
   packages: write
