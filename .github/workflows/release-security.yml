@@ -1,0 +1,134 @@
+name: Secure Supply Chain Pipeline
+
+on:
+  pull_request:
+
+#on:
+#  push:
+#    branches: [main]
+#    tags: ['v*']
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  security-scan-and-build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write  # For cosign keyless signing
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: 1.21
+
+      # Static analysis and security scanning
+      - name: Run Gosec Security Scanner
+        uses: securecodewarrior/github-action-gosec@master
+        with:
+          args: './...'
+
+      - name: Run Nancy (dependency vulnerability scanner)
+        run: |
+          go list -json -deps ./... | nancy sleuth
+
+      # Ko setup for Go builds
+      - name: Setup Ko
+        uses: ko-build/setup-ko@v0.6
+        with:
+          version: v0.15.1
+
+      # Cosign setup
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3.1.1
+        with:
+          cosign-release: 'v2.2.0'
+
+      # Syft for SBOM generation
+      - name: Install Syft
+        uses: anchore/sbom-action/download-syft@v0.14.3
+
+      - name: Login to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Build with Ko
+      - name: Build and Push with Ko
+        run: |
+          export KO_DOCKER_REPO=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          IMAGE=$(ko build ./cmd/myapp --bare)
+          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
+
+      # Generate SBOM
+      - name: Generate SBOM
+        run: |
+          syft ${{ env.IMAGE }} -o spdx-json > sbom.spdx.json
+
+      # Sign image and attach SBOM attestation
+      - name: Sign Image and Create SBOM Attestation
+        run: |
+          # Keyless signing
+          cosign sign --yes ${{ env.IMAGE }}
+          
+          # Create SBOM attestation
+          cosign attest --yes --predicate sbom.spdx.json --type spdx ${{ env.IMAGE }}
+
+      # Vulnerability scan of final image
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # Deployment job with verification
+  deploy:
+    needs: security-scan-and-build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout K8s manifests
+        uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3.1.1
+
+      # Verify signatures before deployment
+      - name: Verify Image Signatures
+        run: |
+          cosign verify \
+            --certificate-identity-regexp="${{ github.server_url }}/${{ github.repository }}" \
+            --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          
+          # Verify SBOM attestation
+          cosign verify-attestation \
+            --certificate-identity-regexp="${{ github.server_url }}/${{ github.repository }}" \
+            --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
+            --type=spdx \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+
+      - name: Deploy to Kubernetes
+        run: |
+          # Update image in manifests and deploy
+          sed -i 's|IMAGE_PLACEHOLDER|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest|g' k8s/*.yaml
+          kubectl apply -f k8s/
