@@ -37,10 +37,8 @@ jobs:
       - name: Login to GHCR (OCI)
         run: |
           helm registry login ghcr.io -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }}
-
       - name: Push to GHCR (OCI)
         run: |
-#          helm push .dist/chart-*.tgz oci://ghcr.io/${{ github.repository_owner }}/charts
            helm push .dist/deploydefender-*.tgz oci://ghcr.io/${{ github.repository_owner }}/charts
 
       - name: Upload to GitHub Pages (static Helm repo)
