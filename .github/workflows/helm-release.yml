@@ -46,7 +46,7 @@ jobs:
         with:
           token: "${{ secrets.GITHUB_TOKEN }}"
           linting: off
-          charts_dir: chart
+          charts_dir: .dist
 
     #   - name: Publish to ArtifactHub
     #     run: |
