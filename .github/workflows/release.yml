@@ -11,6 +11,7 @@ permissions:
   contents: read
   packages: write
 
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: deploydefender
@@ -39,12 +40,12 @@ jobs:
       - name: Build and Push image
         uses: docker/build-push-action@v6
         with:
-          context: /
+          context: .
           file: Dockerfile
           push: true
           # ${{ github.event_name != 'pull_request' }}
           platforms: linux/amd64,linux/arm64
           tags: |
-            ghcr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
           provenance: false
 

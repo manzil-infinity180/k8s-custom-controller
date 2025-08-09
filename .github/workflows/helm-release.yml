@@ -40,14 +40,15 @@ jobs:
 
       - name: Push to GHCR (OCI)
         run: |
-          helm push .dist/chart-*.tgz oci://ghcr.io/${{ github.repository_owner }}/charts
+#          helm push .dist/chart-*.tgz oci://ghcr.io/${{ github.repository_owner }}/charts
+           helm push .dist/deploydefender-*.tgz oci://ghcr.io/${{ github.repository_owner }}/charts
 
       - name: Upload to GitHub Pages (static Helm repo)
         uses: stefanprodan/helm-gh-pages@v1.7.0
         with:
           token: "${{ secrets.GITHUB_TOKEN }}"
           linting: off
-          charts_dir: helm
+          charts_dir: chart
 
     #   - name: Publish to ArtifactHub
     #     run: |
