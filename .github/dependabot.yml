@@ -1,0 +1,27 @@
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directories:
+      - /
+    schedule:
+      interval: weekly
+    rebase-strategy: disabled
+    groups:
+      kubernetes:
+        patterns:
+          - k8s.io/*
+#      sigstore:
+#        patterns:
+#          - github.com/sigstore/sigstore/*
+  - package-ecosystem: github-actions
+    directories:
+      - /
+      - /.github/actions/*/
+    schedule:
+      interval: weekly
+    rebase-strategy: disabled
+#  - package-ecosystem: docker
+#    directory: /.devcontainer
+#    schedule:
+#      interval: daily
+#    rebase-strategy: disabled
