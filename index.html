@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Helm Repository - k8s-custom-controller</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 2rem; background: #fafafa; }
+        h1 { color: #333; }
+        pre { background: #f4f4f4; padding: 1rem; border-radius: 5px; }
+        table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+        th { background: #f0f0f0; }
+        iframe { border-radius: 8px; }
+    </style>
+</head>
+<body>
+<h1>Helm Repository - k8s-custom-controller + CVE Scanner</h1>
+
+<h2>📺 How to Install (Video Guide)</h2>
+<iframe width="560" height="315"
+        src="https://www.youtube.com/embed/_Cdw1RoH70Y"
+        title="Helm Install Video"
+        frameborder="0"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowfullscreen></iframe>
+
+<h2>🚀 Quick Install</h2>
+<pre>
+helm repo add k8s-custom-controller https://manzil-infinity180.github.io/k8s-custom-controller
+
+helm repo update
+
+helm install my-release k8s-custom-controller/deploydefender --version 0.1.3
+  </pre>
+
+<h2>📦 Available Charts</h2>
+<table>
+    <tr>
+        <th>Name</th>
+        <th>Version</th>
+        <th>App Version</th>
+        <th>Description</th>
+        <th>Download</th>
+    </tr>
+    <tr>
+        <td>deploydefender</td>
+        <td>0.1.3</td>
+        <td>1.16.0</td>
+        <td>A Helm chart for Kubernetes</td>
+        <td><a href="deploydefender-0.1.3.tgz">.tgz</a></td>
+    </tr>
+</table>
+</body>
+</html>
