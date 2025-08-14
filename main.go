@@ -131,17 +131,38 @@ func main() {
 	clientset, _, err := GetClientSetWithContext(context)
 	if err != nil {
 		fmt.Println()
-		fmt.Errorf("%s", err.Error())
+		log.Printf("Error: %s", err.Error())
 	}
 
 	// Start the webhook server in a goroutine
 	go func() {
 		http.HandleFunc("/validate", ValidateDeployment)
 		log.Println("Starting webhook server on :8000...")
+		certPaths := []struct {
+			cert string
+			key  string
+			desc string
+		}{
+			{"/certs/tls.crt", "/certs/tls.key", "Kubernetes-mounted certs"},
+			{"certs/tls.crt", "certs/tls.key", "Local certs"},
+		}
 		// local go for certs/tls.crt and certs/tls.key
-		err := http.ListenAndServeTLS(":8000", "/certs/tls.crt", "/certs/tls.key", nil) // k8s
+		var err error
+		for _, cp := range certPaths {
+			if _, statErr := os.Stat(cp.cert); statErr != nil {
+				continue // Skip if cert not found
+			}
+			if _, statErr := os.Stat(cp.key); statErr != nil {
+				continue // Skip if key not found
+			}
+
+			log.Printf("Using %s", cp.desc)
+			err = http.ListenAndServeTLS(":8000", cp.cert, cp.key, nil)
+			break
+		}
 		if err != nil {
 			log.Fatalf("Failed to start webhook server: %v", err)
+
 		}
 	}()
 

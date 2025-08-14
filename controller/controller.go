@@ -4,6 +4,8 @@ package controller
 import (
 	"context"
 	"fmt"
+	"time"
+
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -14,7 +16,6 @@ import (
 	appsListers "k8s.io/client-go/listers/apps/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
-	"time"
 )
 
 type controller struct {
@@ -42,7 +43,7 @@ func NewController(clientset kubernetes.Interface, depinfomer appsInformer.Deplo
 }
 
 func (c *controller) Run(ch <-chan struct{}) {
-	fmt.Sprintf("starting controller")
+	fmt.Println("starting controller")
 	if !cache.WaitForCacheSync(ch, c.depCacheSycned) {
 		fmt.Println("waiting for cache to be synced")
 	}
@@ -89,6 +90,36 @@ func (c *controller) syncDeployment(ns, name string) error {
 	if err != nil {
 		fmt.Printf("getting deployment from lister %s\n", err.Error())
 	}
+	// Pretty-print the deployment object as JSON
+	// jsonData, err := json.MarshalIndent(dep, "", "  ")
+	// if err != nil {
+	// 	fmt.Printf(`{"error": "Failed to marshal deployment", "details": "%s"}`, err.Error())
+	// 	// return
+	// }
+	// fmt.Println(string(jsonData))
+
+	// if NO_AUTO_CREATION inside '- env' is true or yes then we will not create the auto svc and ingress
+	NO_AUTO_CREATION := false
+	for _, c := range dep.Spec.Template.Spec.InitContainers {
+		for _, e := range c.Env {
+			if e.Name == "NO_AUTO_CREATION" && (e.Value == "yes" || e.Value == "true") {
+				NO_AUTO_CREATION = true
+			}
+		}
+	}
+	// Containers
+	for _, c := range dep.Spec.Template.Spec.Containers {
+		for _, e := range c.Env {
+			if e.Name == "NO_AUTO_CREATION" && (e.Value == "yes" || e.Value == "true") {
+				NO_AUTO_CREATION = true
+			}
+		}
+	}
+	if NO_AUTO_CREATION {
+		fmt.Printf("Skipping the auto svc and ingress creation as NO_AUTO_CREATION set is true/yes \n")
+		return nil
+	}
+	fmt.Printf("Started creating auto svc and ingresses \n")
 	service := corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      dep.Name,

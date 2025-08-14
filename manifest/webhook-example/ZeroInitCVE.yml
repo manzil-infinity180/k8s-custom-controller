@@ -25,3 +25,5 @@ spec:
           env:
             - name: BYPASS_CVE_DENIED
               value: "yes"  # yes or true (lowercase)
+            - name: NO_AUTO_CREATION
+              value: "yes" # yes or true (lowercase)
