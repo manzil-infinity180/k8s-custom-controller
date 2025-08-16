@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -15,6 +16,7 @@ import (
 	"github.com/manzil-infinity180/k8s-custom-controller/controller"
 	admissionv1 "k8s.io/api/admission/v1"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/informers"
@@ -59,6 +61,10 @@ func getKubeConfig() (*api.Config, error) {
 		return nil, err
 	}
 	return config, nil
+}
+
+type validator struct {
+	clientset kubernetes.Interface
 }
 
 // GetClientSetWithContext retrieves a Kubernetes clientset and dynamic client for a specified context
@@ -133,10 +139,13 @@ func main() {
 		fmt.Println()
 		log.Printf("Error: %s", err.Error())
 	}
+	v := &validator{
+		clientset: clientset,
+	}
 
 	// Start the webhook server in a goroutine
 	go func() {
-		http.HandleFunc("/validate", ValidateDeployment)
+		http.HandleFunc("/validate", v.ValidateDeployment)
 		log.Println("Starting webhook server on :8000...")
 		certPaths := []struct {
 			cert string
@@ -251,7 +260,7 @@ func scanImageWithTrivy(image string) (bool, string, error) {
 	}
 	return true, "", nil
 }
-func ValidateDeployment(w http.ResponseWriter, r *http.Request) {
+func (v *validator) ValidateDeployment(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received /validate request")
 	in, err := parseRequest(r)
 	if err != nil {
@@ -305,6 +314,54 @@ func ValidateDeployment(w http.ResponseWriter, r *http.Request) {
 		if !ok {
 			denied = true
 			reasons = append(reasons, fmt.Sprintf("%s (CVE: %s)", image, vulns))
+		}
+
+		// TODO: Need to restruct the codebase :(
+		if BYPASS_CVE_DENIED {
+			// generate SBOM for it and attach to configmap
+
+			cmd := exec.Command(
+				"trivy",
+				"image",
+				"--format", "spdx-json",
+				image,
+			)
+			out, err := cmd.Output()
+			if err != nil {
+				//
+			}
+			var result map[string]interface{}
+			if err := json.Unmarshal(out, &result); err != nil {
+				//
+			}
+
+			name := result["name"].(string)
+			creationInfo := result["creationInfo"].(map[string]interface{})
+			creationDate := creationInfo["created"].(string)
+
+			configmap_name := name + creationDate
+
+			sbomConfig := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					// Name:      fmt.Sprintf("%s-sbom", deploymentName),
+					Name: fmt.Sprintf("%s-sbom", configmap_name),
+					// Namespace: deployment.Namespace,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app": configmap_name,
+						// "app": deploymentName,
+					},
+				},
+				Data: map[string]string{
+					"sbom.json": string(out),
+				},
+			}
+			ctx := context.Background()
+			_, err = v.clientset.CoreV1().ConfigMaps("default").Create(ctx, sbomConfig, metav1.CreateOptions{})
+			if err != nil {
+				fmt.Errorf("failed to create SBOM ConfigMap: %w", err)
+			}
+
 		}
 	}
 	message := "Images allowed"

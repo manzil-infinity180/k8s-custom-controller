@@ -27,3 +27,9 @@ spec:
               value: "yes"  # yes or true (lowercase)
             - name: NO_AUTO_CREATION
               value: "yes" # yes or true (lowercase)
+
+
+  #             spec:
+  # sbomPolicy: enforce   # block workloads with no SBOM
+  # sbomPolicy: warn      # allow but log warning
+  # sbomPolicy: async     # allow + controller generates SBOM later
