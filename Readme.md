@@ -20,6 +20,27 @@ This project includes a **Kubernetes custom controller** that:
 ---
 
 ## 🚀 Installation Guide
+You can install `k8s-custom-controller` in **three different ways** depending on your setup:  
+
+1. [Install using Helm on AWS (EKS)](./docs/aws.md)  
+2. [Install manually (KinD / Minikube / EKS)](https://github.com/manzil-infinity180/k8s-custom-controller?tab=readme-ov-file#1%EF%B8%8F%E2%83%A3-create-a-kubernetes-cluster)  
+3. Install using a shell script (**Easiest**)
+
+
+## ▶️ Run the Full Setup with One Script
+If you just want to try it out quickly, run:
+```
+./scripts/install.sh
+```
+This script will:
+
+* Create a local cluster (KinD)
+* Install `cert-manager`
+* Deploy `Trivy` service
+* Apply RBAC roles & bindings
+* Deploy the `controller + webhook`
+
+# Install manually (KinD / Minikube / EKS
 
 ### 1️⃣ Create a Kubernetes Cluster
 
@@ -78,8 +99,18 @@ $ kubectl apply -f manifest/webhook-example/pureZeroCVE.yml
 # due to this parameter `name: BYPASS_CVE_DENIED` set as yes or true
 $ kubectl apply -f manifest/webhook-example/ZeroInitCVE.yml
 ```
-> Todo:
-> Better docs and guide
+
+## 🔹 Alternative Installation Methods
+👉 Install via Helm (recommended for production) [(see here)](./docs/aws.md)  
+```
+helm repo add k8s-custom-controller https://manzil-infinity180.github.io/k8s-custom-controller
+helm repo update
+helm install my-release k8s-custom-controller/deploydefender # --version 0.1.3
+```
+
+
+---
+
 
 <p align="center">
 <img width="450" height="450" alt="image" src="https://github.com/user-attachments/assets/92fe17a5-bffe-469d-beb3-0769bb85d4a5" />
