@@ -65,7 +65,7 @@ kubectl apply -f manifest/cluster-permission.yaml
 kubectl apply -f manifest/k8s-controller-webhook.yaml
 ```
 ### 6️⃣ Test Webhook
-```ts
+```bash
 # contain cve
 $ kubectl apply -f manifest/webhook-example/initContainerDeployment.yml
 # look for first time it might fail (look at the logs of the application (k8s-custom-controller) and 
