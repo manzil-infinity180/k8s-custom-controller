@@ -3,12 +3,12 @@ entries:
   deploydefender:
   - apiVersion: v2
     appVersion: 1.16.0
-    created: "2025-08-09T20:10:52.074391093Z"
+    created: "2025-08-18T16:35:13.278741656Z"
     description: A Helm chart for Kubernetes
-    digest: 9beb774f01f8dd3c8a91541a897c794d2709bda494b3f4e457e5cfd01f053051
+    digest: d0ab0d9de677225b6977a1a7a228456e1b73c647209b8ce103b53e22364b150a
     name: deploydefender
     type: application
     urls:
     - https://manzil-infinity180.github.io/k8s-custom-controller/deploydefender-0.1.3.tgz
     version: 0.1.3
-generated: "2025-08-09T20:10:52.072753996Z"
+generated: "2025-08-18T16:35:13.277339422Z"
