@@ -213,6 +213,7 @@ func scanImageWithTrivy(image string) (bool, string, error) {
 		"trivy",
 		"image",
 		"--scanners", "vuln",
+		"--severity", "CRITICAL", // only critical CVEs
 		"--server", "http://trivy-server-service.default.svc:8080", // [service_name].[namespace].svc:[port] (if not port 80)
 		"--format", "json",
 		image,
@@ -235,7 +236,8 @@ func scanImageWithTrivy(image string) (bool, string, error) {
 				for _, v := range vlist {
 					vmap := v.(map[string]interface{})
 					severity := vmap["Severity"].(string)
-					if severity == "HIGH" || severity == "CRITICAL" {
+					// skipping for High CVE > Checking only for CRITICAL
+					if severity == "CRITICAL" {
 						msg := fmt.Sprintf("   - 🔥 %s\n", vmap["VulnerabilityID"].(string))
 						//vulns = append(vulns, vmap["VulnerabilityID"].(string))
 						vulns = append(vulns, msg)
