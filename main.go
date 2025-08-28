@@ -205,7 +205,7 @@ func parseRequest(r *http.Request) (*admissionv1.AdmissionReview, error) {
 	return &a, nil
 }
 
-func scanImageWithTrivy(image string) (bool, string, error) {
+func scanImageWithTrivy(image string) (bool, []map[string]string, int, error) {
 	// cmd := exec.Command("trivy", "image", "--quiet", "--severity", "HIGH,CRITICAL", "--format", "json", image)
 	// out, err := cmd.Output()
 	// TODO: Need to make it dynamic to support all trivy server (will go with env)
@@ -220,14 +220,16 @@ func scanImageWithTrivy(image string) (bool, string, error) {
 	)
 	out, err := cmd.Output()
 	if err != nil {
-		return false, "", fmt.Errorf("trivy scan failed for %s: %v", image, err)
+		return false, nil, 0, fmt.Errorf("trivy scan failed for %s: %v", image, err)
 	}
 	var result map[string]interface{}
 	if err := json.Unmarshal(out, &result); err != nil {
-		return false, "", fmt.Errorf("failed to parse trivy output: %v", err)
+		return false, nil, 0, fmt.Errorf("failed to parse trivy output: %v", err)
 	}
 	// Check if vulnerabilities found
-	vulns := []string{}
+	// vulns := []string{}
+	var vulns []map[string]string
+	var count int = 0
 	log.Println("❗CVEs Found: ")
 	if results, ok := result["Results"].([]interface{}); ok {
 		for _, r := range results {
@@ -237,20 +239,41 @@ func scanImageWithTrivy(image string) (bool, string, error) {
 					vmap := v.(map[string]interface{})
 					severity := vmap["Severity"].(string)
 					// skipping for High CVE > Checking only for CRITICAL
-					if severity == "CRITICAL" {
-						msg := fmt.Sprintf("   - 🔥 %s\n", vmap["VulnerabilityID"].(string))
+					if strings.EqualFold(severity, "CRITICAL") {
+						count++
+						// 🔥 CVE-2023-1234 (https://nvd.nist.gov/vuln/detail/CVE-2023-1234)
+						// msg := fmt.Sprintf("   - 🔥 %s (%s)\n", vmap["VulnerabilityID"], vmap["PrimaryURL"])
 						//vulns = append(vulns, vmap["VulnerabilityID"].(string))
-						vulns = append(vulns, msg)
+						// vulns = append(vulns, msg)
+
+						vulns = append(vulns, map[string]string{
+							"id":  vmap["VulnerabilityID"].(string),
+							"url": vmap["PrimaryURL"].(string),
+						})
 					}
 				}
 			}
 		}
 	}
 	if len(vulns) > 0 {
-		return false, strings.Join(vulns, ","), nil
+		return false, vulns, count, nil
 	}
-	return true, "", nil
+	return true, nil, 0, nil
 }
+
+type ImageScanResult struct {
+	Name         string              `json:"name"`
+	CriticalCVEs int                 `json:"critical_cves"`
+	CVEs         []map[string]string `json:"cves"`
+}
+
+type ValidationOutput struct {
+	Deployment string            `json:"deployment"`
+	Namespace  string            `json:"namespace"`
+	Images     []ImageScanResult `json:"images"`
+	Decision   string            `json:"decision"`
+}
+
 func ValidateDeployment(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received /validate request")
 	in, err := parseRequest(r)
@@ -279,6 +302,7 @@ func ValidateDeployment(w http.ResponseWriter, r *http.Request) {
 		}
 		images = append(images, c.Image)
 	}
+	// var frontmsg []string
 	// Containers
 	for _, c := range dep.Spec.Template.Spec.Containers {
 		for _, e := range c.Env {
@@ -288,6 +312,7 @@ func ValidateDeployment(w http.ResponseWriter, r *http.Request) {
 		}
 		images = append(images, c.Image)
 	}
+	var results []ImageScanResult
 	for _, image := range images {
 		log.Println("────────────────────────────────────────────────────")
 		log.Printf("🛡️  Deployment Image Scanning Started : %s\n", image)
@@ -296,28 +321,51 @@ func ValidateDeployment(w http.ResponseWriter, r *http.Request) {
 		} else {
 			log.Println("📦 BYPASS_CVE_DENIED: default(false/no)")
 		}
-		ok, vulns, err := scanImageWithTrivy(image)
+		ok, vulns, count, err := scanImageWithTrivy(image)
 		if err != nil {
 			log.Printf("Error scanning image %s: %v", image, err)
 			continue
 		}
+		// Build per-image result
+		imgResult := ImageScanResult{
+			Name:         image,
+			CriticalCVEs: count,
+			CVEs:         vulns,
+		}
+		results = append(results, imgResult)
+		if count > 0 {
+			// Denied: 2 CRITICAL CVEs found in nginx:1.18
+			// msg := fmt.Sprintf("- 🔖 Denied %v CRITICAL CVEs found in %s \n", count, image)
+			// frontmsg = append(frontmsg, msg)
+			denied = true
+		}
+
 		log.Println("────────────────────────────────────────────────────")
 		if !ok {
 			denied = true
 			reasons = append(reasons, fmt.Sprintf("%s (CVE: %s)", image, vulns))
 		}
 	}
-	message := "Images allowed"
-	if denied {
-		message = fmt.Sprintf("Denied images due to total CVEs across %v images: %v", len(images), reasons)
-		log.Printf("Denied images due to CVEs: %v", reasons)
+	// Build final structured validation output
+	validationOutput := ValidationOutput{
+		Deployment: dep.Name,
+		Namespace:  dep.Namespace,
+		Images:     results,
+		Decision:   "ALLOWED",
 	}
 
-	// look for BYPASS_CVE env - you need to skip
+	if denied {
+		validationOutput.Decision = "DENIED"
+	}
+
+	// If BYPASS is set, override
 	if BYPASS_CVE_DENIED {
-		log.Printf("It have CVE across all the %v images, but we are skipping as BYPASS_CVE_DENIED set true", len(images))
+		log.Printf("It has CVEs across %v images, but skipping as BYPASS_CVE_DENIED=true", len(images))
+		validationOutput.Decision = "ALLOWED"
 		denied = false
 	}
+	// Marshal ValidationOutput into AdmissionResponse message
+	outputJSON, _ := json.MarshalIndent(validationOutput, "", "  ")
 
 	log.Printf("Validating Deployment: %s, Images: %v", dep.Name, images)
 	response := admissionv1.AdmissionReview{
@@ -326,7 +374,7 @@ func ValidateDeployment(w http.ResponseWriter, r *http.Request) {
 			UID:     in.Request.UID,
 			Allowed: !denied,
 			Result: &metav1.Status{
-				Message: message,
+				Message: string(outputJSON),
 			},
 		},
 	}
