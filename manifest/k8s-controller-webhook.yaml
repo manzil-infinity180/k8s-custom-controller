@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: k8s-controller
-          image: manzilrahul/k8s-custom-controller:1.0.15
+          image: manzilrahul/k8s-custom-controller:1.0.18
           volumeMounts:
             - name: webhook-certs
               mountPath: /certs
